@@ -1,0 +1,2 @@
+# The DE421 ephemeris (de421.bsp, ~17 MB) is downloaded here by
+# `python scripts/setup_data.py`. It is intentionally not committed.

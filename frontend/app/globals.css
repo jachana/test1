@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-night text-slate-100;
+}
+
+.control-label {
+  @apply block text-xs font-medium uppercase tracking-wide text-slate-400 mb-1;
+}
+
+.control-input {
+  @apply w-full rounded-md border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-sm
+    text-slate-100 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500;
+}
+
+.section-title {
+  @apply text-sm font-semibold text-sky-300 uppercase tracking-wide;
+}

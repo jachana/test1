@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "description": "Hand-authored constellation stick-figure line segments for the most recognisable constellations. Endpoints are Hipparcos (HIP) catalogue numbers matching data/catalog/hip_bright.csv. Authored originally for this project and released under the project MIT licence; based on the classic public-domain Western star-figure conventions.",
+    "coordinate_reference": "HIP",
+    "license": "MIT"
+  },
+  "constellations": [
+    {
+      "id": "UMa",
+      "name": "Ursa Major",
+      "label_star": 62956,
+      "segments": [
+        [54061, 53910], [53910, 58001], [58001, 59774], [59774, 54061],
+        [59774, 62956], [62956, 65378], [65378, 67301]
+      ]
+    },
+    {
+      "id": "UMi",
+      "name": "Ursa Minor",
+      "label_star": 72607,
+      "segments": [
+        [11767, 85822], [85822, 82080], [82080, 77055],
+        [77055, 79822], [79822, 72607], [72607, 75097], [75097, 77055]
+      ]
+    },
+    {
+      "id": "Ori",
+      "name": "Orion",
+      "label_star": 26311,
+      "segments": [
+        [26727, 26311], [26311, 25930],
+        [27989, 26727], [25336, 25930],
+        [26727, 27366], [25930, 24436],
+        [27989, 25336]
+      ]
+    },
+    {
+      "id": "Cas",
+      "name": "Cassiopeia",
+      "label_star": 3179,
+      "segments": [
+        [746, 3179], [3179, 4427], [4427, 6686], [6686, 8886]
+      ]
+    },
+    {
+      "id": "Cyg",
+      "name": "Cygnus",
+      "label_star": 100453,
+      "segments": [
+        [102098, 100453], [100453, 95947],
+        [102488, 100453], [100453, 97165]
+      ]
+    },
+    {
+      "id": "Leo",
+      "name": "Leo",
+      "label_star": 49669,
+      "segments": [
+        [49669, 50583], [50583, 50335],
+        [50583, 54872], [54872, 57632],
+        [54872, 54879], [54879, 49669]
+      ]
+    },
+    {
+      "id": "Sco",
+      "name": "Scorpius",
+      "label_star": 80763,
+      "segments": [
+        [78401, 80763], [80763, 82396], [82396, 86228], [86228, 85927]
+      ]
+    },
+    {
+      "id": "Cru",
+      "name": "Crux",
+      "label_star": 60718,
+      "segments": [
+        [60718, 61084], [62434, 59747]
+      ]
+    },
+    {
+      "id": "Tau",
+      "name": "Taurus",
+      "label_star": 21421,
+      "segments": [
+        [21421, 25428], [21421, 17702]
+      ]
+    },
+    {
+      "id": "Gem",
+      "name": "Gemini",
+      "label_star": 37826,
+      "segments": [
+        [36850, 37826], [37826, 31681]
+      ]
+    },
+    {
+      "id": "CMa",
+      "name": "Canis Major",
+      "label_star": 32349,
+      "segments": [
+        [32349, 33579], [33579, 34444], [34444, 32349]
+      ]
+    },
+    {
+      "id": "Aur",
+      "name": "Auriga",
+      "label_star": 24608,
+      "segments": [
+        [24608, 28360], [28360, 25428], [25428, 24608]
+      ]
+    },
+    {
+      "id": "Peg",
+      "name": "Pegasus",
+      "label_star": 113881,
+      "segments": [
+        [113881, 113963], [113963, 677], [677, 1067], [1067, 113881]
+      ]
+    },
+    {
+      "id": "Sgr",
+      "name": "Sagittarius",
+      "label_star": 90185,
+      "segments": [
+        [88635, 89931], [89931, 90496], [90496, 92855],
+        [92855, 90185], [90185, 89931], [90496, 92041], [92041, 92855]
+      ]
+    }
+  ]
+}

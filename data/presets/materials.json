@@ -1,0 +1,68 @@
+{
+  "note": "These are DESIGN recommendations for feature sizes only. They are NOT laser power/speed settings, which depend on your machine, lens, material, coating, focus, and air assist.",
+  "presets": [
+    {
+      "id": "birch_plywood",
+      "label": "Birch plywood",
+      "minimum_dot_mm": 0.30,
+      "minimum_stroke_mm": 0.20,
+      "minimum_text_height_mm": 3.0,
+      "recommended_density": "high",
+      "note": "Fine grain engraves crisp small dots well."
+    },
+    {
+      "id": "mdf",
+      "label": "MDF",
+      "minimum_dot_mm": 0.35,
+      "minimum_stroke_mm": 0.22,
+      "minimum_text_height_mm": 3.5,
+      "recommended_density": "medium",
+      "note": "Uniform surface; slightly larger minimums avoid fuzzy edges."
+    },
+    {
+      "id": "hardwood",
+      "label": "Hardwood",
+      "minimum_dot_mm": 0.35,
+      "minimum_stroke_mm": 0.25,
+      "minimum_text_height_mm": 3.5,
+      "recommended_density": "medium",
+      "note": "Grain contrast varies; medium density keeps detail readable."
+    },
+    {
+      "id": "painted_wood",
+      "label": "Painted wood",
+      "minimum_dot_mm": 0.30,
+      "minimum_stroke_mm": 0.20,
+      "minimum_text_height_mm": 3.0,
+      "recommended_density": "high",
+      "note": "Paint layer gives strong contrast for fine detail."
+    },
+    {
+      "id": "acrylic",
+      "label": "Acrylic",
+      "minimum_dot_mm": 0.25,
+      "minimum_stroke_mm": 0.15,
+      "minimum_text_height_mm": 2.5,
+      "recommended_density": "high",
+      "note": "Frosted engrave holds very fine detail."
+    },
+    {
+      "id": "coated_metal",
+      "label": "Coated metal",
+      "minimum_dot_mm": 0.20,
+      "minimum_stroke_mm": 0.12,
+      "minimum_text_height_mm": 2.5,
+      "recommended_density": "very-high",
+      "note": "Marking coatings resolve the finest features of any material here."
+    },
+    {
+      "id": "custom",
+      "label": "Custom",
+      "minimum_dot_mm": 0.30,
+      "minimum_stroke_mm": 0.20,
+      "minimum_text_height_mm": 3.0,
+      "recommended_density": "medium",
+      "note": "Set your own minimums in the advanced panel."
+    }
+  ]
+}

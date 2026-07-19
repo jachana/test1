@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+
+# Ephemeris (downloaded during setup — do not commit the ~17 MB binary)
+data/ephemeris/*.bsp
+
+# Skyfield download caches (raw catalogue + time data pulled during setup)
+*.bsp.download
+hip_main.dat
+deltat.data
+deltat.preds
+Leap_Second.dat
+
+# Env / editor
+.env
+.env.local
+.DS_Store
