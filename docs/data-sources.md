@@ -25,8 +25,10 @@ All bundled data uses sources that permit redistribution and commercial output.
 ## Constellation lines
 
 - **Source:** `data/catalog/constellation_lines.json` — hand-authored
-  stick-figure line segments for 14 of the most recognisable constellations,
-  with endpoints referenced by HIP number.
+  stick-figure line segments for 28 constellations (all 12 zodiac signs plus
+  prominent figures such as Orion, Ursa Major/Minor, Cassiopeia, Cygnus, Crux,
+  Bootes, Lyra, Aquila, Perseus, Andromeda), with endpoints referenced by HIP
+  number and verified against the bundled catalogue.
 - **Licence:** Authored originally for this project and released under the
   project's MIT licence. Based on the classic public-domain Western star-figure
   conventions; no third-party dataset is redistributed.

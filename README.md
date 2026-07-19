@@ -101,7 +101,8 @@ Full schema at `http://localhost:8000/docs`.
 ## Known limitations (MVP)
 
 - Star catalogue limited to magnitude ≤ 7.0 (Hipparcos subset), not full Gaia.
-- 14 constellations included; extend `data/catalog/constellation_lines.json`.
+- 28 constellations included (all 12 zodiac signs plus prominent northern and
+  southern figures); extend `data/catalog/constellation_lines.json` for more.
 - Planet/Moon positions require the DE421 ephemeris (date range ~1899–2053); the
   star map itself works for any date.
 - No accounts, payments, orders, direct laser control, or machine power/speed
