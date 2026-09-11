@@ -6,7 +6,7 @@ import { ACTIONS, getAction } from '../data/actions.js';
 import { AREAS } from '../data/areas.js';
 import { getMonster } from '../data/monsters.js';
 import { expProgress } from '../core/formulas.js';
-import { formatDuration, formatNumber } from '../core/util.js';
+import { formatDuration, formatNumber, ratio } from '../core/util.js';
 import { capacity, totalWeight } from '../systems/inventory.js';
 import { maxHp, maxMp, FOOD_CAP_SECONDS } from '../systems/player.js';
 import { characterView } from './views/character.js';
@@ -15,6 +15,8 @@ import { skillView } from './views/skill.js';
 import { inventoryView_ } from './views/inventory.js';
 import { shopView } from './views/shop.js';
 import { settingsView } from './views/settings.js';
+import { vocationModal } from './views/vocation.js';
+import { canChooseVocation, VOCATIONS } from '../data/vocations.js';
 
 const NAV = [
   { route: 'character', label: 'Character', icon: '🧝' },
@@ -85,11 +87,11 @@ function buildHeader() {
   shellUpdates.push(() => {
     const p = expProgress(S.char.exp);
     name.textContent = S.char.name;
-    level.textContent = `Level ${p.level} ${S.char.vocation === 'none' ? 'Citizen' : S.char.vocation}`;
+    level.textContent = `Level ${p.level} ${VOCATIONS[S.char.vocation].name}`;
     expBar.setFill(p.ratio, `${Math.floor(p.ratio * 100)}% to ${p.level + 1}`);
-    hpBar.setFill(S.char.hp / maxHp(), `${Math.ceil(S.char.hp)} hp`);
-    mpBar.setFill(S.char.mana / maxMp(), `${Math.floor(S.char.mana)} mana`);
-    foodBar.setFill(S.char.food / FOOD_CAP_SECONDS, S.char.food > 0 ? `${Math.ceil(S.char.food / 60)}m food` : 'hungry');
+    hpBar.setFill(ratio(S.char.hp, maxHp()), `${Math.ceil(S.char.hp)} hp`);
+    mpBar.setFill(ratio(S.char.mana, maxMp()), `${Math.floor(S.char.mana)} mana`);
+    foodBar.setFill(ratio(S.char.food, FOOD_CAP_SECONDS), S.char.food > 0 ? `${Math.ceil(S.char.food / 60)}m food` : 'hungry');
     const act = currentActivity();
     activity.textContent = `${act.icon} ${act.text}`;
     gold.textContent = `🪙 ${formatNumber(S.gold)}`;
@@ -155,7 +157,7 @@ function toast(text, kind = 'good') {
   setTimeout(() => node.remove(), 3200);
 }
 
-export function offlineModal(summary) {
+export function offlineModal(summary, onClose) {
   if (!summary) return;
   const lines = [
     ['Away for', formatDuration(summary.elapsed)],
@@ -178,7 +180,7 @@ export function offlineModal(summary) {
     summary.skillLevels.length
       ? el('div', { class: 'stack tight' }, summary.skillLevels.map((s) => el('div', { class: 'muted small', text: `${SKILLS[s.id].icon} ${SKILLS[s.id].name} ${s.from} → ${s.to}` })))
       : null,
-    button('Continue', () => backdrop.remove(), { class: 'btn-primary btn-lg' }),
+    button('Continue', () => { backdrop.remove(); onClose?.(); }, { class: 'btn-primary btn-lg' }),
   ]);
   backdrop.append(modal);
   document.body.append(backdrop);
@@ -209,6 +211,8 @@ export function mountShell(root) {
 
   on('tick', () => shell.update());
   on('levelup', ({ level }) => toast(`Level ${level}!`, 'level'));
+  on('vocation:available', () => vocationModal(() => rerender()));
+  on('vocation:chosen', () => { renderNav(); rerender(); });
   on('skillup', ({ skillId, level }) => toast(`${SKILLS[skillId].name} ${level}`, 'skill'));
   on('death', () => { toast('You are dead!', 'bad'); rerender(); });
   on('action:changed', () => { renderNav(); });

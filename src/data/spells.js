@@ -4,7 +4,7 @@ export const SPELLS = {
   // -------------------------------------------------------------- healing
   light_healing: {
     id: 'light_healing', name: 'Light Healing', words: 'exura', kind: 'heal',
-    mana: 20, reqML: 0, reqLevel: 8, voc: ['paladin', 'sorcerer', 'druid', 'knight', 'none'],
+    mana: 20, reqML: 0, reqLevel: 8, voc: ['paladin', 'sorcerer', 'druid', 'knight'],
     base: 12, perML: 3.2, cooldown: 1000,
   },
   intense_healing: {

@@ -1,9 +1,9 @@
 import { S, pushLog } from '../core/state.js';
 import { SKILLS, MAX_SKILL_LEVEL } from '../data/skills.js';
-import { VOCATIONS } from '../data/vocations.js';
+import { VOCATIONS, CHOOSABLE, VOCATION_LEVEL, canChooseVocation } from '../data/vocations.js';
 import { getItem } from '../data/items.js';
 import { expForLevel, levelForExp, maxHealth, maxMana, triesToAdvance } from '../core/formulas.js';
-import { clamp } from '../core/util.js';
+import { clamp, ratio } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { count, removeItem, equipped, regenBonus, skillBonus } from './inventory.js';
 
@@ -29,8 +29,26 @@ export function gainExp(amount) {
     S.char.mana = maxMp();
     pushLog(`You advanced from level ${before} to level ${after}!`, 'level');
     emit('levelup', { level: after });
+    if (before < VOCATION_LEVEL && canChooseVocation(S.char)) {
+      pushLog('You may now choose a vocation and take the ship to the mainland.', 'good');
+      emit('vocation:available');
+    }
   }
 }
+
+/** The level 8 decision: pick a vocation, unlock the mainland. */
+export function chooseVocation(id) {
+  if (!canChooseVocation(S.char) || !CHOOSABLE.includes(id)) return false;
+  S.char.vocation = id;
+  S.char.vocationChosenAt = Date.now();
+  S.char.hp = Math.min(S.char.hp, maxHp());
+  S.char.mana = Math.min(S.char.mana, maxMp());
+  pushLog(`You are now a ${VOCATIONS[id].name.toLowerCase()}. The ship to the mainland is waiting.`, 'level');
+  emit('vocation:chosen', { id });
+  return true;
+}
+
+export { canChooseVocation, VOCATION_LEVEL };
 
 export function loseExpOnDeath(fraction = 0.1) {
   const floorExp = expForLevel(S.char.level);
@@ -79,17 +97,23 @@ export function restoreMana(amount) {
 
 // ------------------------------------------------------------------ regen/food
 
+/** Between fights you catch your breath, the way you would walking to the next spawn. */
+const RESTING_SPEEDUP = 4;
+
 export function regenTick(dt) {
   const voc = vocation();
   const t = S.timers;
+  const resting = !S.combat || S.combat.respawn > 0;
+  // Higher levels heal in bigger chunks, or an idle hunt can never keep up.
+  const tickSize = Math.floor(S.char.level / 15);
 
   if (S.char.food > 0) {
     S.char.food = Math.max(0, S.char.food - dt / 1000);
     t.hpRegen += dt;
-    const hpEvery = voc.hpRegen.seconds * 1000;
+    const hpEvery = (voc.hpRegen.seconds * 1000) / (resting ? RESTING_SPEEDUP : 1);
     while (t.hpRegen >= hpEvery) {
       t.hpRegen -= hpEvery;
-      if (S.char.hp < maxHp()) heal(voc.hpRegen.amount + regenBonus());
+      if (S.char.hp < maxHp()) heal(voc.hpRegen.amount + regenBonus() + tickSize);
     }
   } else {
     t.hpRegen = 0;
@@ -97,10 +121,10 @@ export function regenTick(dt) {
 
   // Mana always trickles back, faster with food and a life ring.
   t.manaRegen += dt;
-  const manaEvery = voc.manaRegen.seconds * 1000 * (S.char.food > 0 ? 1 : 2.5);
+  const manaEvery = (voc.manaRegen.seconds * 1000 * (S.char.food > 0 ? 1 : 2.5)) / (resting ? RESTING_SPEEDUP : 1);
   while (t.manaRegen >= manaEvery) {
     t.manaRegen -= manaEvery;
-    if (S.char.mana < maxMp()) restoreMana(voc.manaRegen.amount + regenBonus());
+    if (S.char.mana < maxMp()) restoreMana(voc.manaRegen.amount + regenBonus() + tickSize);
   }
 }
 
@@ -135,7 +159,7 @@ function weakestPotion(kind) {
 
 export function autoPotion() {
   if (!S.settings.autoPotion) return;
-  const hpRatio = S.char.hp / maxHp();
+  const hpRatio = ratio(S.char.hp, maxHp());
   if (hpRatio < S.settings.potionThreshold) {
     const potion = weakestPotion('heal');
     if (potion && removeItem(potion.id, 1)) {
@@ -143,7 +167,7 @@ export function autoPotion() {
       pushLog(`You drink ${potion.name.toLowerCase()} (+${healed} hp).`, 'good');
     }
   }
-  if (S.char.mana / maxMp() < 0.3 && (S.settings.attackSpell || S.settings.healSpell)) {
+  if (ratio(S.char.mana, maxMp()) < 0.3 && (S.settings.attackSpell || S.settings.healSpell)) {
     const potion = weakestPotion('mana');
     if (potion && removeItem(potion.id, 1)) {
       restoreMana(potion.mana);

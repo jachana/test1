@@ -17,6 +17,9 @@ export function requirementProblem(skillId, action) {
   if (skillLevel(skillId) < action.req) {
     return `Requires ${SKILLS[skillId].name} level ${action.req}.`;
   }
+  if (action.mana && S.char.vocation === 'none') {
+    return 'Rune making requires a vocation — reach level 8 and choose one.';
+  }
   if (action.reqMagic && S.skills.magic.level < action.reqMagic) {
     return `Requires magic level ${action.reqMagic}.`;
   }

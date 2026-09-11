@@ -11,15 +11,29 @@ import {
   autoEat, autoPotion, death, gainExp, gainSkill, heal, maxHp, maxMp,
   regenTick, skillLevel, spendMana, weaponProfile,
 } from './player.js';
+import { VOCATION_LEVEL } from '../data/vocations.js';
 
 const RESPAWN_MS = 1500;
 const BASE_ATTACK_MS = 2000;
 /** Dying this many times without a kill in between means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
 
+/** Why you cannot travel here yet, or null when the road is open. */
+export function travelProblem(area) {
+  if (!area.rookgaard && S.char.vocation === 'none') {
+    return `The ship to the mainland only takes adventurers with a vocation. Reach level ${VOCATION_LEVEL} and choose one.`;
+  }
+  return null;
+}
+
 export function startHunt(areaId) {
   const area = getArea(areaId);
   if (!area) return false;
+  const blocked = travelProblem(area);
+  if (blocked) {
+    pushLog(blocked, 'bad');
+    return false;
+  }
   S.action = { type: 'combat', areaId };
   S.combat = null;
   spawn(area);

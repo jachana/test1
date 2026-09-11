@@ -19,14 +19,14 @@ const bundlePath = join(outDir, '.bundle.js');
 execFileSync('npx', ['--yes', 'esbuild@0.25.0', 'src/main.js', '--bundle', '--format=iife',
   '--minify', `--outfile=${bundlePath}`, '--log-level=warning'], { cwd: root, stdio: 'inherit' });
 
+const fonts = readFileSync(join(root, 'src/fonts.css'), 'utf8');
 const css = readFileSync(join(root, 'src/styles.css'), 'utf8');
 const js = readFileSync(bundlePath, 'utf8');
 rmSync(bundlePath);
 
 const page = `<title>Tibia Idle</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
+${fonts}
 ${css}</style>
 <div id="app"></div>
 <script>

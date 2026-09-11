@@ -16,6 +16,11 @@ export function pickWeighted(entries) {
   return entries[entries.length - 1];
 }
 
+/** Division that survives a zero maximum (a level 1 rookie has 0 mana). */
+export function ratio(value, max) {
+  return max > 0 ? value / max : 0;
+}
+
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }

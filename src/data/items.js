@@ -115,7 +115,7 @@ export const ITEMS = Object.fromEntries([
 
   // -------------------------------------------------------------------- food
   { id: 'brown_mushroom', name: 'Brown Mushroom', icon: '🍄', type: 'food', food: 6, wt: 4, value: 7 },
-  { id: 'fish', name: 'Fish', icon: '🐟', type: 'food', food: 9, wt: 5, value: 5 },
+  { id: 'fish', name: 'Fried Fish', icon: '🐟', type: 'food', food: 9, wt: 5, value: 5 },
   { id: 'ham', name: 'Ham', icon: '🍖', type: 'food', food: 18, wt: 18, value: 8 },
   { id: 'dragon_ham', name: 'Dragon Ham', icon: '🍗', type: 'food', food: 24, wt: 12, value: 20 },
   { id: 'cake', name: 'Cake', icon: '🍰', type: 'food', food: 30, wt: 10, value: 40 },
@@ -145,12 +145,12 @@ export const ITEMS = Object.fromEntries([
   { id: 'board', name: 'Board', icon: '🪵', type: 'resource', wt: 40, value: 15 },
   { id: 'hardwood_plank', name: 'Hardwood Plank', icon: '🟫', type: 'resource', wt: 50, value: 60 },
   { id: 'ancient_log', name: 'Ancient Log', icon: '🪓', type: 'resource', wt: 60, value: 180 },
-  { id: 'raw_fish', name: 'Raw Fish', icon: '🐠', type: 'resource', wt: 5, value: 2 },
+  { id: 'raw_fish', name: 'Fish', icon: '🐠', type: 'food', food: 5, wt: 5, value: 2 },
   { id: 'raw_salmon', name: 'Salmon', icon: '🐡', type: 'resource', wt: 9, value: 12 },
   { id: 'northern_pike', name: 'Northern Pike', icon: '🎏', type: 'resource', wt: 9, value: 35 },
   { id: 'rainbow_trout', name: 'Rainbow Trout', icon: '🌈', type: 'resource', wt: 9, value: 80 },
   { id: 'deepling_fish', name: 'Deepling Fish', icon: '🔷', type: 'resource', wt: 9, value: 200 },
-  { id: 'meat', name: 'Meat', icon: '🥩', type: 'resource', wt: 18, value: 5 },
+  { id: 'meat', name: 'Meat', icon: '🥩', type: 'food', food: 12, wt: 18, value: 5 },
 
   // ------------------------------------------------------------- loot / junk
   { id: 'rat_tail', name: 'Rat Tail', icon: '🐀', type: 'misc', wt: 10, value: 5 },

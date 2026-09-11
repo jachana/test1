@@ -4,8 +4,8 @@ import { AREAS } from '../../data/areas.js';
 import { getMonster } from '../../data/monsters.js';
 import { SPELLS, canCast, spellsFor } from '../../data/spells.js';
 import { ATTACK_MODES } from '../../core/formulas.js';
-import { formatNumber } from '../../core/util.js';
-import { combatStats, startHunt, stopAction } from '../../systems/combat.js';
+import { formatNumber, ratio } from '../../core/util.js';
+import { combatStats, startHunt, stopAction, travelProblem } from '../../systems/combat.js';
 import { maxHp, maxMp } from '../../systems/player.js';
 
 export function combatView({ rerender }) {
@@ -43,8 +43,8 @@ export function combatView({ rerender }) {
 
   updates.push(() => {
     const c = combatStats();
-    playerHp.setFill(S.char.hp / maxHp(), `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
-    playerMp.setFill(S.char.mana / maxMp(), `${Math.floor(S.char.mana)} / ${maxMp()} mana`);
+    playerHp.setFill(ratio(S.char.hp, maxHp()), `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
+    playerMp.setFill(ratio(S.char.mana, maxMp()), `${Math.floor(S.char.mana)} / ${maxMp()} mana`);
 
     if (!S.combat) {
       monsterName.textContent = 'No target';
@@ -110,28 +110,32 @@ export function combatView({ rerender }) {
     stance,
     castable.length
       ? el('div', { class: 'grid-2 tight' }, [spellSelect('heal', 'healSpell'), spellSelect('attack', 'attackSpell')])
-      : el('div', { class: 'muted small', text: 'No spells available yet. Level up and raise your magic level.' }),
+      : el('div', { class: 'muted small', text: S.char.vocation === 'none'
+        ? 'Citizens cannot cast. Choose a vocation at level 8 to learn spells.'
+        : 'No spells available yet. Level up and raise your magic level.' }),
   ]);
 
   // ------------------------------------------------------------------ areas
   const areaGrid = el('div', { class: 'area-grid' }, AREAS.map((area) => {
-    const locked = S.char.level < area.req;
+    const underLevelled = S.char.level < area.req;
+    const blocked = travelProblem(area);
     const active = S.action?.type === 'combat' && S.action.areaId === area.id;
     const spawnNames = area.spawns.map(([id]) => getMonster(id).icon).join(' ');
     return el('button', {
-      class: `area-card${active ? ' active' : ''}${locked ? ' risky' : ''}`,
+      class: `area-card${active ? ' active' : ''}${underLevelled && !blocked ? ' risky' : ''}${blocked ? ' locked' : ''}`,
       onClick: () => {
-        if (locked) pushLog(`${area.name} is meant for level ${area.req}+. Good luck.`, 'bad');
+        if (!blocked && underLevelled) pushLog(`${area.name} is meant for level ${area.req}+. Good luck.`, 'bad');
         startHunt(area.id);
         rerender();
       },
     }, [
       el('div', { class: 'row space' }, [
         el('span', { class: 'area-name', text: `${area.icon} ${area.name}` }),
-        el('span', { class: 'tag', text: `lvl ${area.req}+` }),
+        el('span', { class: 'tag', text: area.rookgaard ? `Rookgaard · lvl ${area.req}+` : `lvl ${area.req}+` }),
       ]),
       el('p', { class: 'muted small', text: area.blurb }),
       el('div', { class: 'spawn-row', text: spawnNames }),
+      blocked ? el('div', { class: 'warn small', text: '🔒 Needs a vocation — the ship will not take you.' }) : null,
       active ? el('div', { class: 'badge', text: 'hunting' }) : null,
     ]);
   }));

@@ -1,9 +1,13 @@
 # Tibia Idle
 
 An idle/incremental game in the shape of [Melvor Idle](https://melvoridle.com/), built out
-of [Tibia](https://www.tibia.com/)'s world, vocations and formulas. Pick a vocation, park
-your character in a hunting ground or at a mining vein, and come back later to a fatter
-character.
+of Tibia's world, vocations and formulas — aimed squarely at the **7.6 era**, in both
+content and looks: beveled brown chrome, sunken black panels, flat health bars, bitmap
+type, square corners.
+
+You start the way everyone did: a vocationless citizen on Rookgaard with a club and a
+wooden shield. Reach level 8, choose a vocation, and the ship to the mainland opens up.
+Park the character in a hunting ground or at a mining vein and come back later.
 
 No build step, no dependencies — plain ES modules, `localStorage` saves.
 
@@ -21,12 +25,12 @@ over `file://`.
 
 | System | Detail |
 | --- | --- |
-| Vocations | Knight, Paladin, Sorcerer, Druid, Citizen — each with real per-level hp/mana/cap gains and skill cost multipliers |
+| Vocations | Citizen until level 8, then Knight, Paladin, Sorcerer or Druid — permanent, and it gates spells, rune making and the mainland |
 | Combat skills | Fist, Club, Sword, Axe, Distance, Shielding, Magic Level |
 | Idle skills | Fishing, Mining, Woodcutting, Cooking, Blacksmithing, Rune Making |
-| Hunting | 10 areas from the Rookgaard Sewers to Hellgate, 40 creatures, weighted spawns and loot tables |
+| Hunting | 12 areas from the Rookgaard Sewers to Hellgate — Cyclopolis, Drefia, Deep Kazordoon — with 43 creatures, weighted spawns and loot tables |
 | Items | ~90 items — rapier to magic sword, leather to magic plate armor, runes, potions, food, ores, bars |
-| Automation | Auto-eat, auto-potion, auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying |
+| Automation | Auto-eat, auto-potion, auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying (stops after three deaths without a kill) |
 | Offline | Up to 12 hours of away time is replayed on load and summarised in a welcome-back screen |
 
 ## The formulas are the real ones
@@ -35,6 +39,7 @@ The point of a Tibia idle game is that the grind curves feel like Tibia, so the 
 comes straight from the game (see `src/core/formulas.js`):
 
 - **Experience:** `exp(level) = 50/3 · (level³ − 6·level² + 17·level − 12)` — level 8 is 4,200 exp, as it should be.
+- **Health, mana and capacity:** levels 2-8 are vocationless rookie levels worth +5 hp / +5 mana / +10 oz, so every level 8 character lands on exactly **185 hp, 35 mana, 470 oz** before the vocation starts paying out at level 9.
 - **Skills:** every skill advances on *tries*, and the next level costs `base · factor^(skill − offset)`.
   A knight needs 50 hits for sword 10 → 11 (`factor 1.1`); a sorcerer needs the same 50 hits
   but with `factor 2.0`, so they are still at sword 20 while the knight is at 60.
@@ -44,10 +49,15 @@ comes straight from the game (see `src/core/formulas.js`):
   Attack / Balanced / Full Defence trading damage against blocking.
 - **Armour:** soaks a random slice between `0.475·armor` and `armor` off every hit.
 
-Deliberate departures from canon, for the sake of a playable idle game: vocation hp/mana
-gains start at level 2 instead of level 8, there is no death item loss (just 10% exp and
-skill progress), weights are lighter than the real ones, and Mining / Woodcutting /
-Blacksmithing / Cooking are invented skills — Tibia has no crafting professions.
+Deliberate departures from canon, for the sake of a playable idle game: there is no death
+item loss (just 10% exp and skill progress), weights are lighter than the real ones,
+health and mana regenerate four times faster between spawns and in larger chunks at high
+level (an idle hunt cannot restock potions), and Mining / Woodcutting / Blacksmithing /
+Cooking are invented skills — Tibia has no crafting professions.
+
+Content is kept to roughly what existed in 7.6: no Tiquanda, no Ankrahmun, no ice
+islands — so no hydras, serpent spawns or frost dragons. The deep end is Behemoths, Black
+Knights, Heroes, Warlocks and Demons.
 
 ## Code layout
 
@@ -60,6 +70,7 @@ src/core/
   formulas.js         experience, skill tries, hp/mana/cap, damage, defence
   bus.js util.js      tiny pub/sub and formatting helpers
 src/data/             pure content: items, monsters, areas, actions, spells, shops, skills, vocations
+src/fonts.css         Silkscreen (SIL OFL 1.1) embedded, so the client looks right offline
 src/systems/
   player.js           levels, skill tries, regeneration, food, potions, death
   combat.js           the fight loop, loot, auto-cast, auto-return
@@ -68,7 +79,9 @@ src/systems/
 src/ui/
   app.js              shell, nav, routing, header, log, toasts, offline modal
   dom.js              el() / bar() / card() / button() helpers
-  views/              one module per page
+  views/              one module per page (incl. the level 8 vocation chooser)
+tools/check-data.mjs  cross-checks every id in src/data — run it after editing content
+tools/build-artifact.mjs  bundles the game into one self-contained HTML file
 ```
 
 The state object is the single source of truth and is JSON-serialisable end to end; systems
@@ -78,9 +91,13 @@ gathering node one line in `src/data/actions.js`.
 
 `window.game.state` is exposed in the console for poking at a live save.
 
+Run `node tools/check-data.mjs` after touching content; it catches a typo'd item id in a
+loot table before the game does.
+
 ## Ideas worth building next
 
-- Quests and the Rookgaard → mainland progression gate
+- Promotion at level 20 (Elite Knight, Royal Paladin, Master Sorcerer, Elder Druid)
+- Rookgaard's academy quests as the actual gate to the ship
 - Party/summon system, or a second character slot
 - Imbuements or a soul-point sink
 - Fishing rods / pickaxes as tools with tiers

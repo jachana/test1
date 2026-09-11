@@ -1,5 +1,5 @@
 import { SKILLS, MAX_SKILL_LEVEL } from '../data/skills.js';
-import { VOCATIONS, BASE_HP, BASE_MANA, BASE_CAP } from '../data/vocations.js';
+import { VOCATIONS, BASE_HP, BASE_MANA, BASE_CAP, ROOKIE_GAIN, VOCATION_LEVEL } from '../data/vocations.js';
 
 // Tibia's real experience curve.
 export function expForLevel(level) {
@@ -32,16 +32,24 @@ export function triesToAdvance(skillId, level, vocation) {
   return Math.ceil(skill.base * skillFactor(skillId, vocation) ** (level - skill.offset));
 }
 
+// Levels 2-8 are vocationless rookie levels; the vocation only pays out from
+// level 9, exactly as in Tibia.
+function stat(level, vocation, base, rookieGain, vocationGain) {
+  const rookieLevels = Math.min(level, VOCATION_LEVEL) - 1;
+  const vocationLevels = Math.max(0, level - VOCATION_LEVEL);
+  return base + rookieGain * rookieLevels + VOCATIONS[vocation][vocationGain] * vocationLevels;
+}
+
 export function maxHealth(level, vocation) {
-  return BASE_HP + VOCATIONS[vocation].hpPerLevel * (level - 1);
+  return stat(level, vocation, BASE_HP, ROOKIE_GAIN.hp, 'hpPerLevel');
 }
 
 export function maxMana(level, vocation) {
-  return BASE_MANA + VOCATIONS[vocation].manaPerLevel * (level - 1);
+  return stat(level, vocation, BASE_MANA, ROOKIE_GAIN.mana, 'manaPerLevel');
 }
 
 export function maxCapacity(level, vocation) {
-  return BASE_CAP + VOCATIONS[vocation].capPerLevel * (level - 1);
+  return stat(level, vocation, BASE_CAP, ROOKIE_GAIN.cap, 'capPerLevel');
 }
 
 // Melee/distance damage, modelled on Tibia's formula:

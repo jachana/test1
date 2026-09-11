@@ -38,28 +38,36 @@ export const MONSTERS = Object.fromEntries([
   M('fire_devil', 'Fire Devil', '😈', 160, 250, 12, 26, 20, 60, 1800, [20, 130], [['blank_rune', 0.1, 1, 2], ['rune_fireball', 0.04]]),
 
   // ------------------------------------------------------------ Mid / deserts
-  M('scarab', 'Scarab', '🪲', 240, 180, 22, 30, 18, 52, 2000, [0, 100], [['scarab_shell', 0.08]]),
-  M('ancient_scarab', 'Ancient Scarab', '🟫', 1100, 1500, 30, 45, 40, 120, 1800, [100, 400], [['scarab_shell', 0.2], ['crown_helmet', 0.01]]),
-  M('larva', 'Larva', '🐛', 75, 90, 8, 18, 10, 32, 2000, [0, 60], [['meat', 0.2]]),
   M('minotaur_mage', 'Minotaur Mage', '🧙', 232, 300, 12, 28, 22, 70, 1900, [20, 160], [['minotaur_leather', 0.12], ['rune_great_fireball', 0.02]]),
   M('wyvern', 'Wyvern', '🐲', 925, 515, 26, 40, 35, 105, 1800, [50, 250], [['dragon_scale', 0.05], ['power_ring', 0.02]]),
   M('giant_spider', 'Giant Spider', '🕸️', 1000, 900, 28, 42, 40, 130, 1700, [60, 300], [['giant_spider_silk', 0.08], ['plate_shield', 0.05], ['knight_legs', 0.005]]),
 
+  // --------------------------------------------------- Edron / Cyclopolis
+  M('cyclops', 'Cyclops', '👁️‍🗨️', 260, 150, 20, 28, 20, 60, 2000, [20, 110], [['meat', 0.25], ['battle_hammer', 0.03], ['plate_shield', 0.03]]),
+  M('stone_golem', 'Stone Golem', '🗿', 200, 190, 28, 32, 20, 58, 2000, [0, 0], [['iron_ore', 0.12], ['crystal_ore', 0.04], ['stone_skin_amulet', 0.005]]),
+  M('dwarf_geomancer', 'Dwarf Geomancer', '🔮', 250, 220, 16, 30, 25, 75, 1900, [30, 160], [['iron_ore', 0.1], ['mana_potion', 0.1], ['blank_rune', 0.15, 1, 3]]),
+  M('elder_beholder', 'Elder Beholder', '👀', 350, 380, 18, 32, 28, 85, 1800, [40, 200], [['mana_potion', 0.12], ['rune_great_fireball', 0.03], ['blank_rune', 0.15, 1, 3]]),
+  M('green_djinn', 'Green Djinn', '🧞', 800, 350, 22, 34, 30, 90, 1900, [50, 220], [['blank_rune', 0.2, 1, 3], ['silver_amulet', 0.04], ['mana_potion', 0.12]]),
+  M('efreet', 'Efreet', '🧞‍♂️', 550, 680, 24, 38, 40, 115, 1800, [80, 300], [['rune_great_fireball', 0.06], ['protection_amulet', 0.03], ['great_mana_potion', 0.05]]),
+
+  // ------------------------------------------------------- Drefia / Ghostlands
+  M('vampire', 'Vampire', '🧛', 475, 305, 20, 34, 30, 88, 1800, [40, 190], [['bone', 0.2], ['silver_amulet', 0.04], ['dragon_necklace', 0.01]]),
+  M('necromancer', 'Necromancer', '🕯️', 580, 580, 22, 38, 38, 110, 1800, [60, 250], [['blank_rune', 0.2, 1, 3], ['rune_sudden_death', 0.02], ['mana_potion', 0.15]]),
+  M('banshee', 'Banshee', '👻', 1000, 900, 24, 40, 45, 130, 1800, [80, 320], [['rune_ultimate_healing', 0.04], ['silver_amulet', 0.06], ['crown_helmet', 0.004]]),
+  M('lich', 'Lich', '💀', 880, 780, 26, 42, 48, 140, 1800, [100, 380], [['rune_sudden_death', 0.05], ['dragon_necklace', 0.02], ['gold_ore', 0.06]]),
+
   // --------------------------------------------------------------- Dragons etc
   M('dragon', 'Dragon', '🐉', 1000, 700, 25, 40, 40, 120, 1800, [50, 280], [['dragon_scale', 0.08], ['dragon_necklace', 0.02], ['steel_helmet', 0.02], ['dragon_ham', 0.2]]),
   M('dragon_lord', 'Dragon Lord', '🐲', 1900, 2100, 32, 50, 60, 190, 1700, [150, 550], [['dragon_scale', 0.15], ['dragon_shield', 0.01], ['royal_helmet', 0.003], ['dragon_ham', 0.3]]),
-  M('wyrm', 'Wyrm', '🪰', 1825, 1550, 30, 46, 50, 160, 1700, [120, 420], [['dragon_scale', 0.1], ['crystal_ore', 0.05]]),
-  M('frost_dragon', 'Frost Dragon', '❄️', 1400, 2100, 32, 48, 55, 175, 1700, [150, 500], [['dragon_scale', 0.12], ['crown_armor', 0.005], ['great_health_potion', 0.05]]),
-  M('hellhound', 'Hellhound', '🔥', 5000, 6000, 40, 60, 90, 300, 1500, [400, 1200], [['demon_dust', 0.1], ['great_health_potion', 0.1]]),
+
+  // ------------------------------------------------- Deep Kazordoon / Hellgate
+  M('black_knight', 'Black Knight', '🏴', 1400, 1200, 32, 48, 60, 175, 1700, [150, 500], [['knight_armor', 0.004], ['knight_legs', 0.004], ['battle_hammer', 0.05], ['great_health_potion', 0.05]]),
+  M('hero', 'Hero', '🦸', 1400, 1000, 30, 46, 55, 165, 1700, [140, 480], [['crown_armor', 0.004], ['crown_helmet', 0.006], ['boots_of_haste', 0.002], ['great_health_potion', 0.06]]),
+  M('behemoth', 'Behemoth', '👹', 4000, 2500, 40, 56, 85, 260, 1600, [300, 1000], [['giant_spider_silk', 0.05], ['crystal_ore', 0.1], ['war_hammer', 0.003], ['great_health_potion', 0.1]]),
 
   // --------------------------------------------------------------- Late game
-  M('hydra', 'Hydra', '🐍', 2350, 3000, 34, 52, 70, 220, 1700, [200, 700], [['hydra_head', 0.1], ['great_health_potion', 0.08], ['tower_shield', 0.004]]),
-  M('serpent_spawn', 'Serpent Spawn', '🐊', 1800, 3000, 36, 54, 75, 230, 1700, [250, 800], [['soul_orb', 0.15], ['guardian_shield', 0.004]]),
-  M('medusa', 'Medusa', '🦎', 3000, 3500, 38, 56, 80, 250, 1700, [300, 900], [['soul_orb', 0.15], ['boots_of_haste', 0.003]]),
   M('warlock', 'Warlock', '🧙‍♂️', 1000, 4000, 26, 48, 95, 300, 1600, [300, 900], [['rune_sudden_death', 0.1, 1, 2], ['magic_plate_armor', 0.001], ['great_mana_potion', 0.15]]),
-  M('ghastly_dragon', 'Ghastly Dragon', '👻', 7200, 4000, 42, 60, 100, 320, 1600, [400, 1400], [['soul_orb', 0.2], ['dragon_claw', 0.002]]),
   M('demon', 'Demon', '👿', 8200, 6000, 44, 64, 110, 380, 1500, [500, 1800], [['demon_dust', 0.15], ['demon_shield', 0.003], ['demon_helmet', 0.002], ['magic_sword', 0.001], ['great_mana_potion', 0.2]]),
-  M('juggernaut', 'Juggernaut', '🤖', 8000, 9000, 50, 70, 130, 450, 1500, [700, 2200], [['soul_orb', 0.25], ['thunder_hammer', 0.002], ['ravagers_axe', 0.003]]),
 ].map((m) => [m.id, m]));
 
 export function getMonster(id) {

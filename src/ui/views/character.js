@@ -1,14 +1,15 @@
 import { el, bar, card, button } from '../dom.js';
 import { S } from '../../core/state.js';
 import { SKILLS } from '../../data/skills.js';
-import { VOCATIONS } from '../../data/vocations.js';
+import { VOCATIONS, VOCATION_LEVEL, canChooseVocation } from '../../data/vocations.js';
 import { EQUIP_SLOTS, getItem } from '../../data/items.js';
 import { expProgress, triesToAdvance } from '../../core/formulas.js';
-import { formatDuration, formatNumber } from '../../core/util.js';
+import { formatDuration, formatNumber, ratio } from '../../core/util.js';
 import { capacity, totalWeight, unequip } from '../../systems/inventory.js';
 import { maxHp, maxMp, skillLevel, FOOD_CAP_SECONDS } from '../../systems/player.js';
 import { combatStats } from '../../systems/combat.js';
 import { totalKills } from '../../core/engine.js';
+import { vocationChooser } from './vocation.js';
 
 export function characterView({ rerender }) {
   const updates = [];
@@ -27,15 +28,15 @@ export function characterView({ rerender }) {
     levelLine.textContent = `Level ${p.level}`;
     expBar.setFill(p.ratio, `${formatNumber(p.into)} / ${formatNumber(p.need)} exp`);
     expLine.textContent = `${formatNumber(p.next - S.char.exp)} experience to level ${p.level + 1} · ${formatNumber(S.char.exp)} total`;
-    hpBar.setFill(S.char.hp / maxHp(), `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
-    mpBar.setFill(S.char.mana / maxMp(), `${Math.floor(S.char.mana)} / ${maxMp()} mana`);
-    foodBar.setFill(S.char.food / FOOD_CAP_SECONDS, `Food ${formatDuration(S.char.food * 1000)}`);
+    hpBar.setFill(ratio(S.char.hp, maxHp()), `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
+    mpBar.setFill(ratio(S.char.mana, maxMp()), `${Math.floor(S.char.mana)} / ${maxMp()} mana`);
+    foodBar.setFill(ratio(S.char.food, FOOD_CAP_SECONDS), `Food ${formatDuration(S.char.food * 1000)}`);
   });
 
   const vitals = card(`${VOCATIONS[char.vocation].icon} ${char.name}`, [
     el('div', { class: 'row space' }, [
       levelLine,
-      el('span', { class: 'tag', text: `${S.char.vocation === 'none' ? 'Citizen' : S.char.vocation[0].toUpperCase() + S.char.vocation.slice(1)}` }),
+      el('span', { class: 'tag', text: VOCATIONS[S.char.vocation].name }),
     ]),
     expBar, expLine, hpBar, mpBar, foodBar,
   ]);
@@ -106,8 +107,16 @@ export function characterView({ rerender }) {
     ].map(([k, v]) => el('div', { class: 'kv' }, [el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v })])));
   });
 
+  const vocationCardNode = canChooseVocation(char)
+    ? card('⛵ Choose your vocation', vocationChooser(rerender), { class: 'highlight' })
+    : (char.vocation === 'none'
+      ? card('⛵ Still a citizen', [
+        el('p', { class: 'muted small', text: `You are ${VOCATION_LEVEL - char.level} level${VOCATION_LEVEL - char.level === 1 ? '' : 's'} away from choosing a vocation. Until then only Rookgaard is open to you, spells stay out of reach, and every skill trains at the slow vocationless rate.` }),
+      ])
+      : null);
+
   const node = el('div', { class: 'grid-2' }, [
-    el('div', {}, [vitals, equipment]),
+    el('div', {}, [vitals, vocationCardNode, equipment].filter(Boolean)),
     el('div', {}, [card('📈 Skills', skillRows), card('🏆 Milestones', stats)]),
   ]);
 

@@ -19,7 +19,8 @@ function freshSkills() {
   return skills;
 }
 
-export function createState(name, vocation) {
+export function createState(name, vocation = 'none') {
+  // Everyone starts vocationless on Rookgaard; the choice happens at level 8.
   const voc = VOCATIONS[vocation] ? vocation : 'none';
   const state = {
     version: SAVE_VERSION,
@@ -34,11 +35,12 @@ export function createState(name, vocation) {
       mana: 35,
       food: 0, // seconds of regeneration left
       soul: 100,
+      vocationChosenAt: null, // timestamp of the level 8 decision
     },
     skills: freshSkills(),
-    // You start kitted out like a fresh Rookgaard character.
+    // Rookgaard starter kit: a club, leathers and something to eat.
     equipment: {
-      helmet: null, amulet: null, weapon: 'rapier', shield: 'wooden_shield',
+      helmet: null, amulet: null, weapon: 'club', shield: 'wooden_shield',
       armour: 'leather_armor', ring: null, legs: 'leather_legs', boots: 'leather_boots', ammo: null,
     },
     inventory: [
@@ -75,9 +77,10 @@ export function setState(next) {
   emit('state:replaced', S);
 }
 
-export function newGame(name, vocation) {
-  setState(createState(name, vocation));
-  pushLog(`Welcome to Tibia, ${S.char.name}. Your journey begins in Rookgaard.`, 'good');
+export function newGame(name) {
+  setState(createState(name));
+  pushLog(`Welcome to Tibia, ${S.char.name}. You wash up on Rookgaard with no vocation and a club.`, 'good');
+  pushLog('Reach level 8 to choose a vocation and sail for the mainland.', 'info');
   save();
   return S;
 }
