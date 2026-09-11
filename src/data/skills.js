@@ -46,28 +46,8 @@ export const SKILLS = {
     start: 10, offset: 10, base: 20,
     factor: { all: 1.1 },
   },
-  mining: {
-    name: 'Mining', icon: '⛏️', cat: 'gathering', unit: 'swings',
-    start: 1, offset: 1, base: 15,
-    factor: { all: 1.065 },
-  },
-  woodcutting: {
-    name: 'Woodcutting', icon: '🌲', cat: 'gathering', unit: 'chops',
-    start: 1, offset: 1, base: 15,
-    factor: { all: 1.065 },
-  },
-  cooking: {
-    name: 'Cooking', icon: '🍳', cat: 'production', unit: 'meals',
-    start: 1, offset: 1, base: 12,
-    factor: { all: 1.065 },
-  },
-  smithing: {
-    name: 'Blacksmithing', icon: '🛠️', cat: 'production', unit: 'strikes',
-    start: 1, offset: 1, base: 18,
-    factor: { all: 1.07 },
-  },
   runecrafting: {
-    name: 'Rune Making', icon: '📜', cat: 'production', unit: 'runes',
+    name: 'Rune Making', icon: '📜', cat: 'magic', unit: 'runes',
     start: 1, offset: 1, base: 20,
     factor: { all: 1.07 },
   },

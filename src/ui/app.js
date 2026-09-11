@@ -15,12 +15,15 @@ import { skillView } from './views/skill.js';
 import { inventoryView_ } from './views/inventory.js';
 import { shopView } from './views/shop.js';
 import { settingsView } from './views/settings.js';
+import { questsView } from './views/quests.js';
+import { getQuest } from '../data/quests.js';
 import { vocationModal } from './views/vocation.js';
 import { canChooseVocation, VOCATIONS } from '../data/vocations.js';
 
 const NAV = [
   { route: 'character', label: 'Character', icon: '🧝' },
   { route: 'combat', label: 'Hunt', icon: '⚔️' },
+  { route: 'quests', label: 'Quests', icon: '📜' },
   { route: 'inventory', label: 'Backpack', icon: '🎒' },
   { route: 'shop', label: 'Traders', icon: '🏪' },
   { group: 'Skills' },
@@ -41,6 +44,7 @@ function buildView(ctx) {
     case 'inventory': return inventoryView_(ctx);
     case 'shop': return shopView(ctx);
     case 'settings': return settingsView(ctx);
+    case 'quests': return questsView(ctx);
     case 'combat':
     default: return combatView(ctx);
   }
@@ -69,8 +73,12 @@ export function currentActivity() {
     const target = S.combat ? getMonster(S.combat.monsterId).name : '…';
     return { text: `Hunting ${target} — ${area?.name ?? ''}`, icon: area?.icon ?? '⚔️' };
   }
+  if (S.action.type === 'quest') {
+    const quest = getQuest(S.action.questId);
+    return { text: `On a quest — ${quest?.name ?? '…'}`, icon: quest?.icon ?? '📜' };
+  }
   const action = getAction(S.action.skill, S.action.actionId);
-  return { text: `${action?.name ?? 'Working'} — ${SKILLS[S.action.skill].name}`, icon: action?.icon ?? '⛏️' };
+  return { text: `${action?.name ?? 'Working'} — ${SKILLS[S.action.skill].name}`, icon: action?.icon ?? '🎣' };
 }
 
 function buildHeader() {
@@ -116,6 +124,7 @@ function buildNav() {
       }
       const busy = S.action
         && ((item.route === 'combat' && S.action.type === 'combat')
+          || (item.route === 'quests' && S.action.type === 'quest')
           || (item.route === `skill:${S.action.skill}` && S.action.type === 'idle'));
       return el('button', {
         class: `nav-item${route === item.route ? ' active' : ''}${busy ? ' busy' : ''}`,

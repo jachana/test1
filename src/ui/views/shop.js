@@ -4,10 +4,12 @@ import { getItem } from '../../data/items.js';
 import { SHOPS, buyPrice, sellPrice } from '../../data/shops.js';
 import { formatNumber, formatWeight } from '../../core/util.js';
 import { addGold, addItem, count, freeCapacity, removeItem } from '../../systems/inventory.js';
+import { isDone } from '../../systems/quests.js';
 
 export function shopView() {
   const updates = [];
-  let shopId = SHOPS[0].id;
+  const openShops = () => SHOPS.filter((shop) => !shop.quest || isDone(shop.quest));
+  let shopId = openShops()[0].id;
 
   const goldEl = el('div', { class: 'gold big' });
   updates.push(() => { goldEl.textContent = `🪙 ${formatNumber(S.gold)} gold`; });
@@ -46,11 +48,13 @@ export function shopView() {
   };
 
   const render = () => {
-    tabs.replaceChildren(...SHOPS.map((shop) => button(`${shop.icon} ${shop.npc}`, () => { shopId = shop.id; render(); }, {
+    const shops = openShops();
+    tabs.replaceChildren(...shops.map((shop) => button(`${shop.icon} ${shop.npc}`, () => { shopId = shop.id; render(); }, {
       class: shopId === shop.id ? 'active' : '',
     })));
 
-    const shop = SHOPS.find((s) => s.id === shopId);
+    const shop = shops.find((s) => s.id === shopId) ?? shops[0];
+    shopId = shop.id;
     stockList.replaceChildren(
       el('div', { class: 'muted small', text: shop.title }),
       ...shop.stock.map((itemId) => {

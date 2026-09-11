@@ -64,6 +64,7 @@ export function createState(name, vocation = 'none') {
       lootFilterValue: 0,
       autoReturn: true,
     },
+    quests: { done: [], choice: {} },
     stats: { kills: {}, deaths: 0, deathStreak: 0, goldEarned: 0, expEarned: 0, playtimeMs: 0, actionsDone: 0, itemsGathered: 0 },
     log: [],
   };
@@ -135,6 +136,7 @@ function migrate(raw) {
     timers: { ...base.timers, ...raw.timers },
     settings: { ...base.settings, ...raw.settings },
     stats: { ...base.stats, ...raw.stats },
+    quests: { done: [], choice: {}, ...raw.quests },
     inventory: Array.isArray(raw.inventory) ? raw.inventory : base.inventory,
     log: Array.isArray(raw.log) ? raw.log.slice(-MAX_LOG) : [],
     version: SAVE_VERSION,

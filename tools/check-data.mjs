@@ -10,6 +10,8 @@ import { SHOPS } from '../src/data/shops.js';
 import { SPELLS } from '../src/data/spells.js';
 import { SKILLS } from '../src/data/skills.js';
 import { VOCATIONS, CHOOSABLE } from '../src/data/vocations.js';
+import { QUESTS } from '../src/data/quests.js';
+import { SPRITES } from '../src/data/sprites.js';
 
 const problems = [];
 const item = (id, where) => {
@@ -57,6 +59,25 @@ for (const id of CHOOSABLE) {
   if (!VOCATIONS[id]) problems.push(`vocations: choosable "${id}" does not exist`);
 }
 
+const questIds = new Set(QUESTS.map((q) => q.id));
+for (const q of QUESTS) {
+  for (const [id] of q.rewards ?? []) item(id, `quest ${q.id} reward`);
+  for (const id of q.choice ?? []) item(id, `quest ${q.id} choice`);
+  for (const id of q.needs ?? []) {
+    if (!questIds.has(id)) problems.push(`quest ${q.id}: unknown prerequisite "${id}"`);
+  }
+  if (q.unlocks && !AREAS.some((a) => a.id === q.unlocks)) {
+    problems.push(`quest ${q.id}: unlocks unknown area "${q.unlocks}"`);
+  }
+  if (q.unlocksShop && !SHOPS.some((s) => s.id === q.unlocksShop)) {
+    problems.push(`quest ${q.id}: unlocks unknown shop "${q.unlocksShop}"`);
+  }
+}
+for (const shop of SHOPS) {
+  if (shop.quest && !questIds.has(shop.quest)) problems.push(`shop ${shop.id}: unknown quest "${shop.quest}"`);
+}
+for (const id of Object.keys(SPRITES)) item(id, 'sprite mapping');
+
 // Warn about content nobody can reach.
 const spawned = new Set(AREAS.flatMap((a) => a.spawns.map(([id]) => id)));
 const orphans = Object.keys(MONSTERS).filter((id) => !spawned.has(id));
@@ -67,4 +88,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`data ok — ${Object.keys(ITEMS).length} items, ${Object.keys(MONSTERS).length} monsters, ${AREAS.length} areas, ${Object.values(ACTIONS).flat().length} actions`);
+console.log(`data ok — ${Object.keys(ITEMS).length} items, ${Object.keys(MONSTERS).length} monsters, ${AREAS.length} areas, ${QUESTS.length} quests, ${Object.values(ACTIONS).flat().length} actions`);

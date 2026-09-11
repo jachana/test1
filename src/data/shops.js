@@ -21,8 +21,13 @@ export const SHOPS = [
       'protection_amulet', 'power_ring'],
   },
   {
+    id: 'djinn', npc: 'Alesar', icon: '🧞', title: 'Green Djinn Trader', quest: 'djinn_trial',
+    stock: ['blank_rune', 'rune_intense_healing', 'rune_great_fireball', 'rune_sudden_death',
+      'great_mana_potion', 'great_health_potion', 'might_ring', 'energy_ring', 'blue_robe'],
+  },
+  {
     id: 'willie', npc: 'Willie', icon: '🧑‍🌾', title: 'Farmer & Fletcher',
-    stock: ['brown_mushroom', 'meat', 'ham', 'arrow', 'bolt', 'bow', 'crossbow', 'wooden_sticks', 'board'],
+    stock: ['brown_mushroom', 'meat', 'ham', 'arrow', 'bolt', 'bow', 'crossbow', 'scimitar', 'barbarian_axe'],
   },
 ];
 

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite Picker — Tibia Idle</title>
+<style>
+  body { margin: 0; font: 13px Tahoma, Verdana, sans-serif; background: #3a352a; color: #d9d3c0; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; padding: 12px; }
+  .panel { background: #57503e; border: 2px solid; border-color: #837a61 #2b2820 #2b2820 #837a61; padding: 10px; }
+  h1 { font-size: 16px; margin: 0 0 8px; }
+  .sheet { position: relative; overflow: auto; max-height: 88vh; background: #131210; }
+  canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
+  label { display: block; font-size: 11px; color: #9b937c; margin-top: 8px; }
+  input, select, textarea, button { font: inherit; background: #131210; color: #d9d3c0; border: 2px solid;
+    border-color: #2b2820 #837a61 #837a61 #2b2820; padding: 5px 7px; width: 100%; }
+  button { background: #6d5a2e; color: #fff; cursor: pointer; border-color: #837a61 #2b2820 #2b2820 #837a61; }
+  textarea { height: 220px; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+  .hint { color: #9b937c; font-size: 11px; line-height: 1.5; }
+  .done { color: #63d13f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Sprite sheet</h1>
+    <p class="hint">Pick the item on the right, then click its tile. Paste the output into
+      <code>src/data/sprites.js</code>. Arrow keys nudge the selection; <kbd>Enter</kbd> assigns it.</p>
+    <div class="sheet"><canvas id="c"></canvas></div>
+  </div>
+  <div class="panel">
+    <label>Sheet file (defaults to ../assets/items.png)</label>
+    <input type="file" id="file" accept="image/png,image/gif">
+    <label>Tile size</label><input id="tile" type="number" value="32">
+    <label>Zoom</label><input id="zoom" type="number" value="2" min="1" max="6">
+    <label>Item to map (<span id="left">0</span> left)</label>
+    <select id="item" size="12"></select>
+    <button id="skip">Skip this item</button>
+    <label>sprites.js entries</label>
+    <textarea id="out" readonly></textarea>
+    <button id="copy">Copy to clipboard</button>
+  </div>
+</div>
+<script type="module">
+import { ITEMS } from '../src/data/items.js';
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const tileInput = document.getElementById('tile');
+const zoomInput = document.getElementById('zoom');
+const itemSelect = document.getElementById('item');
+const out = document.getElementById('out');
+const left = document.getElementById('left');
+
+const mapping = {};
+let image = null;
+let cols = 0;
+let selected = 0;
+
+const ids = Object.keys(ITEMS);
+function refreshList() {
+  const remaining = ids.filter((id) => mapping[id] == null);
+  itemSelect.replaceChildren(...remaining.map((id) => {
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = `${ITEMS[id].icon} ${ITEMS[id].name}`;
+    return o;
+  }));
+  if (itemSelect.options.length) itemSelect.selectedIndex = 0;
+  left.textContent = String(remaining.length);
+  out.value = Object.entries(mapping).map(([id, i]) => `  ${id}: ${i},`).join('\n');
+}
+
+function draw() {
+  if (!image) return;
+  const tile = Number(tileInput.value) || 32;
+  const zoom = Number(zoomInput.value) || 2;
+  cols = Math.floor(image.width / tile);
+  canvas.width = image.width * zoom;
+  canvas.height = image.height * zoom;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cols; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x * tile * zoom + .5, 0);
+    ctx.lineTo(x * tile * zoom + .5, canvas.height);
+    ctx.stroke();
+  }
+  const rows = Math.floor(image.height / tile);
+  for (let y = 0; y <= rows; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y * tile * zoom + .5);
+    ctx.lineTo(canvas.width, y * tile * zoom + .5);
+    ctx.stroke();
+  }
+  // highlight the current tile
+  const sx = (selected % cols) * tile * zoom;
+  const sy = Math.floor(selected / cols) * tile * zoom;
+  ctx.strokeStyle = '#ffe35b';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(sx + 1, sy + 1, tile * zoom - 2, tile * zoom - 2);
+}
+
+function assign() {
+  const id = itemSelect.value;
+  if (!id) return;
+  mapping[id] = selected;
+  refreshList();
+  draw();
+}
+
+canvas.addEventListener('click', (e) => {
+  const tile = Number(tileInput.value) || 32;
+  const zoom = Number(zoomInput.value) || 2;
+  const rect = canvas.getBoundingClientRect();
+  const col = Math.floor((e.clientX - rect.left) / (tile * zoom));
+  const row = Math.floor((e.clientY - rect.top) / (tile * zoom));
+  selected = row * cols + col;
+  assign();
+});
+
+document.addEventListener('keydown', (e) => {
+  const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.key];
+  if (step) { selected = Math.max(0, selected + step); draw(); e.preventDefault(); }
+  if (e.key === 'Enter') assign();
+});
+
+document.getElementById('skip').addEventListener('click', () => {
+  if (itemSelect.selectedIndex < itemSelect.options.length - 1) itemSelect.selectedIndex += 1;
+});
+document.getElementById('copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(out.value);
+});
+document.getElementById('file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => { image = img; draw(); };
+  img.src = URL.createObjectURL(file);
+});
+for (const input of [tileInput, zoomInput]) input.addEventListener('input', draw);
+
+const fallback = new Image();
+fallback.onload = () => { image = fallback; draw(); };
+fallback.src = '../assets/items.png';
+refreshList();
+</script>
+</body>
+</html>

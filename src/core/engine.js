@@ -2,6 +2,7 @@ import { S, save, pushLog, OFFLINE_CAP_MS } from './state.js';
 import { emit } from './bus.js';
 import { tickCombat } from '../systems/combat.js';
 import { tickIdle } from '../systems/idle.js';
+import { tickQuest } from '../systems/quests.js';
 import { autoEat, regenTick } from '../systems/player.js';
 
 export const TICK_MS = 100;
@@ -19,6 +20,7 @@ export function tick(dt) {
 
   if (S.action?.type === 'combat') tickCombat(dt);
   else if (S.action?.type === 'idle') tickIdle(dt);
+  else if (S.action?.type === 'quest') tickQuest(dt);
   else autoEat();
 }
 

@@ -262,6 +262,24 @@ a { color: var(--yellow); }
 .cost { font-size: 10.5px; border: 1px solid var(--chrome-dark); background: var(--inset); padding: 0 5px; color: var(--muted); }
 .cost.short { color: var(--red); }
 
+/* Sprite-sheet icons, when assets/items.png is present (see src/data/sprites.js). */
+.sprite { display: block; image-rendering: pixelated; background-repeat: no-repeat; }
+.item-tile .sprite { transform: scale(1.1); }
+
+/* ------------------------------------------------------------ hunting guide */
+.guide-line { border-top: 1px solid #00000040; padding-top: 3px; margin-top: 2px; }
+.verdict { font-family: var(--display); font-size: 10px; padding: 1px 5px; border: 1px solid var(--chrome-dark); }
+.verdict.safe { color: var(--green); }
+.verdict.comfortable { color: #b9d97a; }
+.verdict.risky { color: var(--orange); }
+.verdict.deadly { color: var(--red); }
+.guide-table { display: flex; flex-direction: column; gap: 1px; }
+.guide-row { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 6px; font-size: 11px; padding: 1px 0; border-bottom: 1px solid #00000040; }
+.guide-cell { color: var(--muted); text-align: right; }
+.guide-cell.name { color: var(--text); text-align: left; }
+.action-row.done { opacity: .7; }
+.action-row.done .action-name { color: var(--green); }
+
 /* ----------------------------------------------------------------- backpack */
 .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 3px; }
 .item-tile {
@@ -381,6 +399,8 @@ div.voc-card { cursor: default; }
   .nav-group, .nav-sep { display: none; }
   .nav-icon { font-size: 17px; }
   .grid-2, .derived { grid-template-columns: 1fr; }
+  .guide-row { grid-template-columns: 1fr 1fr; }
+  .guide-cell.name { grid-column: 1 / -1; }
   .hdr-bars { grid-template-columns: 1fr; }
   .hdr-right { align-items: flex-start; text-align: left; }
 }

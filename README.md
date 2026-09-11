@@ -27,9 +27,11 @@ over `file://`.
 | --- | --- |
 | Vocations | Citizen until level 8, then Knight, Paladin, Sorcerer or Druid — permanent, and it gates spells, rune making and the mainland |
 | Combat skills | Fist, Club, Sword, Axe, Distance, Shielding, Magic Level |
-| Idle skills | Fishing, Mining, Woodcutting, Cooking, Blacksmithing, Rune Making |
+| Idle skills | Fishing and Rune Making — the only two things Tibia ever let you sit and repeat |
+| Quests | 16 one-time trips from The Bear Room to Ferumbras' Tower; two of them are the only way into Drefia and Hellgate, one opens the djinn trader, and the Annihilator makes you pick your chest before you walk in |
+| Hunting guide | Every area is costed against your actual character: exp/hour, gold/hour, seconds-to-kill per creature, damage taken, supplies needed and a safe/comfortable/risky/deadly verdict |
 | Hunting | 12 areas from the Rookgaard Sewers to Hellgate — Cyclopolis, Drefia, Deep Kazordoon — with 43 creatures, weighted spawns and loot tables |
-| Items | ~90 items — rapier to magic sword, leather to magic plate armor, runes, potions, food, ores, bars |
+| Items | 137 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems |
 | Automation | Auto-eat, auto-potion, auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying (stops after three deaths without a kill) |
 | Offline | Up to 12 hours of away time is replayed on load and summarised in a welcome-back screen |
 
@@ -51,9 +53,9 @@ comes straight from the game (see `src/core/formulas.js`):
 
 Deliberate departures from canon, for the sake of a playable idle game: there is no death
 item loss (just 10% exp and skill progress), weights are lighter than the real ones,
-health and mana regenerate four times faster between spawns and in larger chunks at high
-level (an idle hunt cannot restock potions), and Mining / Woodcutting / Blacksmithing /
-Cooking are invented skills — Tibia has no crafting professions.
+and health and mana regenerate four times faster between spawns and in larger chunks at
+high level (an idle hunt cannot restock potions). There are no crafting professions,
+because Tibia never had any: progression outside hunting is quests.
 
 Content is kept to roughly what existed in 7.6: no Tiquanda, no Ankrahmun, no ice
 islands — so no hydras, serpent spawns or frost dragons. The deep end is Behemoths, Black
@@ -69,19 +71,22 @@ src/core/
   state.js            save shape, load/save/migrate/export, adventure log
   formulas.js         experience, skill tries, hp/mana/cap, damage, defence
   bus.js util.js      tiny pub/sub and formatting helpers
-src/data/             pure content: items, monsters, areas, actions, spells, shops, skills, vocations
+src/data/             pure content: items, monsters, areas, quests, actions, spells, shops, skills, vocations
 src/fonts.css         Silkscreen (SIL OFL 1.1) embedded, so the client looks right offline
 src/systems/
   player.js           levels, skill tries, regeneration, food, potions, death
   combat.js           the fight loop, loot, auto-cast, auto-return
-  idle.js             gathering and production actions
+  idle.js             fishing and rune making
+  quests.js           quest runs, chests, prerequisites and unlocks
+  guide.js            hunting-ground estimates: exp/h, gp/h, danger, notable drops
   inventory.js        stacks, weight/capacity, equipment, derived stats
 src/ui/
   app.js              shell, nav, routing, header, log, toasts, offline modal
   dom.js              el() / bar() / card() / button() helpers
   views/              one module per page (incl. the level 8 vocation chooser)
-tools/check-data.mjs  cross-checks every id in src/data — run it after editing content
+tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
 tools/build-artifact.mjs  bundles the game into one self-contained HTML file
+tools/sprite-picker.html  click tiles on a sprite sheet to build src/data/sprites.js
 ```
 
 The state object is the single source of truth and is JSON-serialisable end to end; systems
@@ -94,12 +99,18 @@ gathering node one line in `src/data/actions.js`.
 Run `node tools/check-data.mjs` after touching content; it catches a typo'd item id in a
 loot table before the game does.
 
+## Sprites
+
+Items fall back to emoji, but the game can draw a real Tibia item sheet instead. Put the
+sheet at `assets/items.png`, open `tools/sprite-picker.html` (through the same local
+server), and click each tile: it hands you the `itemId: tileIndex,` lines to paste into
+`src/data/sprites.js`. Anything you have not mapped keeps its emoji, so a partial mapping
+is fine.
+
 ## Ideas worth building next
 
 - Promotion at level 20 (Elite Knight, Royal Paladin, Master Sorcerer, Elder Druid)
-- Rookgaard's academy quests as the actual gate to the ship
+- More quests: Djinn war (Efreet vs Marid), Explorer Society, Dark Cathedral bonelords
 - Party/summon system, or a second character slot
-- Imbuements or a soul-point sink
-- Fishing rods / pickaxes as tools with tiers
-- A proper bank (depot) separate from the backpack
+- A proper depot separate from the backpack
 - Rare-drop announcements and a loot log tab

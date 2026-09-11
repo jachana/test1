@@ -1,3 +1,5 @@
+import { SHEET, spritePosition } from '../data/sprites.js';
+
 export function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -45,8 +47,16 @@ export function clear(node) {
 }
 
 export function itemIcon(item, qty) {
+  const pos = spritePosition(item.id);
+  const glyph = pos
+    ? el('span', {
+      class: 'sprite',
+      style: `background-image:url(${SHEET.src});background-position:${pos.x}px ${pos.y}px;`
+        + `width:${SHEET.tile}px;height:${SHEET.tile}px`,
+    })
+    : item.icon;
   return el('span', { class: 'item-icon', title: item.name }, [
-    item.icon,
+    glyph,
     qty != null && qty > 1 ? el('span', { class: 'item-qty', text: qty > 9999 ? `${Math.floor(qty / 1000)}k` : String(qty) }) : null,
   ]);
 }

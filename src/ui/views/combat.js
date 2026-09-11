@@ -6,6 +6,7 @@ import { SPELLS, canCast, spellsFor } from '../../data/spells.js';
 import { ATTACK_MODES } from '../../core/formulas.js';
 import { formatNumber, ratio } from '../../core/util.js';
 import { combatStats, startHunt, stopAction, travelProblem } from '../../systems/combat.js';
+import { areaEstimate } from '../../systems/guide.js';
 import { maxHp, maxMp } from '../../systems/player.js';
 
 export function combatView({ rerender }) {
@@ -135,12 +136,69 @@ export function combatView({ rerender }) {
       ]),
       el('p', { class: 'muted small', text: area.blurb }),
       el('div', { class: 'spawn-row', text: spawnNames }),
-      blocked ? el('div', { class: 'warn small', text: '🔒 Needs a vocation — the ship will not take you.' }) : null,
+      blocked ? null : (() => {
+        const e = areaEstimate(area);
+        return el('div', { class: 'row space guide-line' }, [
+          el('span', { class: 'small', text: `${formatNumber(e.expPerHour)} exp/h · ${formatNumber(e.goldPerHour)} gp/h` }),
+          el('span', { class: `verdict ${e.verdict.id}`, text: e.verdict.label }),
+        ]);
+      })(),
+      blocked ? el('div', { class: 'warn small', text: `🔒 ${blocked}` }) : null,
       active ? el('div', { class: 'badge', text: 'hunting' }) : null,
     ]);
   }));
 
-  const node = el('div', { class: 'stack' }, [arena, tactics, card('🗺️ Hunting Grounds', areaGrid)]);
+  // ------------------------------------------------------------- the guide
+  const guideBody = el('div', { class: 'stack tight' });
+  const guide = card('📖 Hunting Guide', guideBody);
+  updates.push(() => {
+    const area = S.action?.type === 'combat' ? AREAS.find((a) => a.id === S.action.areaId) : null;
+    if (!area) {
+      guide.style.display = 'none';
+      return;
+    }
+    guide.style.display = '';
+    const e = areaEstimate(area);
+    const rows = e.parts
+      .slice()
+      .sort((a, b) => b.expPerHour - a.expPerHour)
+      .map((p) => el('div', { class: 'guide-row' }, [
+        el('span', { class: 'guide-cell name', text: `${p.monster.icon} ${p.monster.name}` }),
+        el('span', { class: 'guide-cell', text: `${formatNumber(p.monster.hp)} hp` }),
+        el('span', { class: 'guide-cell', text: `${p.ttk < 1 ? p.ttk.toFixed(1) : Math.round(p.ttk)}s to kill` }),
+        el('span', { class: 'guide-cell', text: `${formatNumber(p.expPerHour)} exp/h` }),
+        el('span', { class: 'guide-cell', text: `-${Math.round(p.damagePerKill)} hp` }),
+      ]));
+
+    // replaceChildren() stringifies null, so filter before handing it over.
+    guideBody.replaceChildren(...[
+      el('div', { class: 'row space' }, [
+        el('span', { class: 'area-name', text: `${area.icon} ${area.name}` }),
+        el('span', { class: `verdict ${e.verdict.id}`, text: e.verdict.label }),
+      ]),
+      el('div', { class: 'derived' }, [
+        ['Experience', `${formatNumber(e.expPerHour)} / hour`],
+        ['Gold + loot', `${formatNumber(e.goldPerHour)} / hour`],
+        ['Taking', `${e.incoming.toFixed(1)} damage / second`],
+        ['Supplies', e.potionsPerHour < 1 ? 'Food and resting cover it' : `~${Math.ceil(e.potionsPerHour)} strong health potions / hour`],
+      ].map(([k, v]) => el('div', { class: 'kv' }, [
+        el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v }),
+      ]))),
+      el('div', { class: 'muted small', text: e.verdict.note }),
+      el('div', { class: 'guide-table' }, rows),
+      e.notableDrops.length
+        ? el('div', { class: 'stack tight' }, [
+          el('div', { class: 'muted small', text: 'Worth walking here for:' }),
+          el('div', { class: 'row wrap costs' }, e.notableDrops.map((d) => el('span', {
+            class: 'cost', title: `${d.from} · ${(d.chance * 100).toFixed(d.chance < 0.01 ? 2 : 1)}%`,
+            text: `${d.item.icon} ${d.item.name} ${(d.chance * 100).toFixed(d.chance < 0.01 ? 2 : 1)}%`,
+          }))),
+        ])
+        : null,
+    ].filter(Boolean));
+  });
+
+  const node = el('div', { class: 'stack' }, [arena, guide, tactics, card('🗺️ Hunting Grounds', areaGrid)]);
   const update = () => updates.forEach((fn) => fn());
   update();
   return { node, update };

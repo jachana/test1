@@ -12,6 +12,8 @@ import {
   regenTick, skillLevel, spendMana, weaponProfile,
 } from './player.js';
 import { VOCATION_LEVEL } from '../data/vocations.js';
+import { questGateFor } from '../data/quests.js';
+import { isDone } from './quests.js';
 
 const RESPAWN_MS = 1500;
 const BASE_ATTACK_MS = 2000;
@@ -22,6 +24,10 @@ const DEATH_STREAK_LIMIT = 3;
 export function travelProblem(area) {
   if (!area.rookgaard && S.char.vocation === 'none') {
     return `The ship to the mainland only takes adventurers with a vocation. Reach level ${VOCATION_LEVEL} and choose one.`;
+  }
+  const gate = questGateFor(area.id);
+  if (gate && !isDone(gate.id)) {
+    return `You cannot get in until you finish ${gate.name}.`;
   }
   return null;
 }
