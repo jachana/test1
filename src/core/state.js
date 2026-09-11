@@ -1,5 +1,11 @@
 import { SKILLS } from '../data/skills.js';
 import { VOCATIONS } from '../data/vocations.js';
+import { ITEMS } from '../data/items.js';
+import { MONSTERS } from '../data/monsters.js';
+import { AREAS } from '../data/areas.js';
+import { QUESTS } from '../data/quests.js';
+import { SPELLS } from '../data/spells.js';
+import { getAction } from '../data/actions.js';
 import { maxHealth, maxMana } from './formulas.js';
 import { emit } from './bus.js';
 
@@ -144,7 +150,61 @@ function migrate(raw) {
   for (const [id, def] of Object.entries(SKILLS)) {
     if (!merged.skills[id]) merged.skills[id] = { level: def.start, points: 0, totalTries: 0 };
   }
-  return merged;
+  return sanitise(merged);
+}
+
+/**
+ * Drops anything the save refers to that this version of the game no longer has.
+ *
+ * Content moves: creatures get cut, items get renamed, skills get replaced. A
+ * save written before one of those changes will name things that are gone, and
+ * every lookup for them throws — which used to take the whole page down on load
+ * rather than just losing the stale bit.
+ */
+function sanitise(state) {
+  if (!VOCATIONS[state.char.vocation]) state.char.vocation = 'none';
+
+  state.inventory = (state.inventory ?? []).filter((e) => e && ITEMS[e.id] && e.qty > 0);
+  for (const [slot, id] of Object.entries(state.equipment)) {
+    if (id && !ITEMS[id]) state.equipment[slot] = null;
+  }
+
+  for (const id of Object.keys(state.skills)) {
+    if (!SKILLS[id]) delete state.skills[id];
+  }
+
+  if (state.combat && !MONSTERS[state.combat.monsterId]) state.combat = null;
+
+  const action = state.action;
+  const actionIsGone = action && (
+    (action.type === 'combat' && !AREAS.some((a) => a.id === action.areaId))
+    || (action.type === 'idle' && !getAction(action.skill, action.actionId))
+    || (action.type === 'quest' && !QUESTS.some((q) => q.id === action.questId))
+    || !['combat', 'idle', 'quest'].includes(action.type)
+  );
+  if (actionIsGone) {
+    state.action = null;
+    state.combat = null;
+  }
+
+  state.quests.done = (state.quests.done ?? []).filter((id) => QUESTS.some((q) => q.id === id));
+  for (const [questId, itemId] of Object.entries(state.quests.choice ?? {})) {
+    if (!ITEMS[itemId] || !QUESTS.some((q) => q.id === questId)) delete state.quests.choice[questId];
+  }
+
+  for (const key of ['healSpell', 'attackSpell']) {
+    if (state.settings[key] && !SPELLS[state.settings[key]]) state.settings[key] = null;
+  }
+
+  for (const id of Object.keys(state.stats.kills ?? {})) {
+    if (!MONSTERS[id]) delete state.stats.kills[id];
+  }
+
+  const maxHp = maxHealth(state.char.level, state.char.vocation);
+  const maxMp = maxMana(state.char.level, state.char.vocation);
+  state.char.hp = Math.min(Math.max(1, state.char.hp || maxHp), maxHp);
+  state.char.mana = Math.min(Math.max(0, state.char.mana || 0), maxMp);
+  return state;
 }
 
 export function exportSave() {
