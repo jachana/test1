@@ -5,9 +5,17 @@ import { getItem } from '../data/items.js';
 import { expForLevel, levelForExp, maxHealth, maxMana, triesToAdvance } from '../core/formulas.js';
 import { clamp, ratio } from '../core/util.js';
 import { emit } from '../core/bus.js';
-import { count, removeItem, equipped, regenBonus, skillBonus } from './inventory.js';
+import { count, removeItem, equipped, hasteBonus, regenBonus, skillBonus } from './inventory.js';
 
 export const FOOD_CAP_SECONDS = 20 * 60; // Tibia tops you up at ~20 minutes
+const BASE_ATTACK_MS = 2000;
+
+/** How often you swing, in milliseconds. Two-handed weapons are slower. */
+export function playerAttackInterval() {
+  const weapon = equipped('weapon');
+  const base = weapon?.twoHanded ? BASE_ATTACK_MS * 1.2 : BASE_ATTACK_MS;
+  return Math.max(600, base * (1 - hasteBonus()));
+}
 
 export const maxHp = () => maxHealth(S.char.level, S.char.vocation);
 export const maxMp = () => maxMana(S.char.level, S.char.vocation);

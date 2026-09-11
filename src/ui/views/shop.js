@@ -5,6 +5,7 @@ import { SHOPS, buyPrice, sellPrice } from '../../data/shops.js';
 import { formatNumber, formatWeight } from '../../core/util.js';
 import { addGold, addItem, count, freeCapacity, removeItem } from '../../systems/inventory.js';
 import { isDone } from '../../systems/quests.js';
+import { compareEquip, VERDICT_LABEL } from '../../systems/compare.js';
 
 export function shopView() {
   const updates = [];
@@ -67,7 +68,15 @@ export function shopView() {
           el('div', { class: 'shop-main' }, [
             el('div', { class: 'row space' }, [
               el('span', { text: item.name }),
-              el('span', { class: 'tag', text: `${formatNumber(price)} gp` }),
+              el('div', { class: 'row' }, [
+                (() => {
+                  const c = compareEquip(itemId);
+                  return c && !c.equipped && c.verdict !== 'same'
+                    ? el('span', { class: `verdict ${c.verdict}`, text: VERDICT_LABEL[c.verdict] })
+                    : null;
+                })(),
+                el('span', { class: 'tag', text: `${formatNumber(price)} gp` }),
+              ]),
             ]),
             el('div', { class: 'muted small', text: `${formatWeight(item.wt)} · sells back for ${formatNumber(sellPrice(itemId))} gp${have ? ` · you own ${formatNumber(have)}` : ''}${locked ? ` · needs level ${item.reqLevel}` : ''}` }),
           ]),

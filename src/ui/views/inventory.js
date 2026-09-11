@@ -8,6 +8,7 @@ import {
 } from '../../systems/inventory.js';
 import { eat, heal, restoreMana, maxHp } from '../../systems/player.js';
 import { SPELLS } from '../../data/spells.js';
+import { compareEquip, isUpgrade, VERDICT_LABEL } from '../../systems/compare.js';
 import { spellHit } from '../../core/formulas.js';
 
 export function inventoryView_({ rerender }) {
@@ -81,6 +82,26 @@ export function inventoryView_({ rerender }) {
     lines.push(['Weight', formatWeight(item.wt)]);
     lines.push(['Sells for', `${formatNumber(sellPrice(item.id))} gold`]);
 
+    // How this sits against whatever is in that slot right now.
+    const comparison = compareEquip(item.id);
+    const compareBlock = comparison && !comparison.equipped
+      ? el('div', { class: `compare ${comparison.verdict}` }, [
+        el('div', { class: 'row space' }, [
+          el('span', { class: 'compare-title', text: comparison.current ? `vs ${comparison.current.name}` : `vs empty ${comparison.slot}` }),
+          el('span', { class: `verdict ${comparison.verdict}`, text: VERDICT_LABEL[comparison.verdict] }),
+        ]),
+        ...comparison.deltas.map((d) => el('div', { class: 'kv' }, [
+          el('span', { class: 'k', text: d.label }),
+          el('span', { class: `v delta ${d.change > 0 ? 'up' : 'down'}` }, [
+            d.from == null ? '' : `${d.from} → ${d.to}  `,
+            `${d.change > 0 ? '+' : ''}${d.unit === 's' ? `${(d.change / 1000).toFixed(1)}s` : d.change}`,
+          ]),
+        ])),
+        comparison.weaponNote ? el('div', { class: 'muted small', text: comparison.weaponNote }) : null,
+        comparison.deltas.length ? null : el('div', { class: 'muted small', text: 'Identical where it counts.' }),
+      ])
+      : null;
+
     const actions = [];
     if (slot) actions.push(button('Equip', () => { equip(item.id); renderAll(); }, { class: 'btn-primary' }));
     if (['food', 'potion', 'rune'].includes(item.type)) actions.push(button('Use', () => useItem(item), { class: 'btn-primary' }));
@@ -105,6 +126,7 @@ export function inventoryView_({ rerender }) {
       el('div', { class: 'derived' }, lines.map(([k, v]) => el('div', { class: 'kv' }, [
         el('span', { class: 'k', text: k }), el('span', { class: 'v', text: String(v) }),
       ]))),
+      ...(compareBlock ? [compareBlock] : []),
       el('div', { class: 'row wrap' }, actions),
     );
   };
@@ -118,7 +140,10 @@ export function inventoryView_({ rerender }) {
         class: `item-tile${selected === entry.id ? ' selected' : ''}`,
         title: entry.item.name,
         onClick: () => { selected = entry.id; renderDetail(); renderGrid(); },
-      }, [itemIcon(entry.item, entry.qty)])));
+      }, [
+        itemIcon(entry.item, entry.qty),
+        isUpgrade(entry.id) ? el('span', { class: 'upgrade-mark', title: 'Better than what you are wearing', text: '▲' }) : null,
+      ])));
     }
   };
 

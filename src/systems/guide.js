@@ -6,8 +6,7 @@ import { sellPrice } from '../data/shops.js';
 import { maxHit, defenceValue, spellHit } from '../core/formulas.js';
 import { clamp } from '../core/util.js';
 import { totalArmour, shieldDefence } from './inventory.js';
-import { maxHp, skillLevel, vocation, weaponProfile } from './player.js';
-import { playerAttackInterval } from './combat.js';
+import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile } from './player.js';
 
 const RESPAWN_S = 1.5;
 // Mirrors of the random rolls in combat.js, averaged.

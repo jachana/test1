@@ -2,21 +2,21 @@ import { S, pushLog } from '../core/state.js';
 import { getArea } from '../data/areas.js';
 import { getMonster } from '../data/monsters.js';
 import { SPELLS } from '../data/spells.js';
-import { getItem } from '../data/items.js';
+import { getItem, slotOf } from '../data/items.js';
 import { maxHit, defenceValue, spellHit } from '../core/formulas.js';
 import { clamp, pickWeighted, randInt, roll } from '../core/util.js';
 import { emit } from '../core/bus.js';
-import { addGold, addItem, count, equipped, hasteBonus, removeItem, totalArmour, shieldDefence } from './inventory.js';
+import { addGold, addItem, count, removeItem, totalArmour, shieldDefence } from './inventory.js';
 import {
   autoEat, autoPotion, death, gainExp, gainSkill, heal, maxHp, maxMp,
-  regenTick, skillLevel, spendMana, weaponProfile,
+  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile,
 } from './player.js';
 import { VOCATION_LEVEL } from '../data/vocations.js';
 import { questGateFor } from '../data/quests.js';
+import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
 
 const RESPAWN_MS = 1500;
-const BASE_ATTACK_MS = 2000;
 /** Dying this many times without a kill in between means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
 
@@ -71,12 +71,6 @@ function spawn(area) {
     lastMonsterHit: null,
   };
   emit('combat:spawn', monster);
-}
-
-export function playerAttackInterval() {
-  const weapon = equipped('weapon');
-  const base = weapon?.twoHanded ? BASE_ATTACK_MS * 1.2 : BASE_ATTACK_MS;
-  return Math.max(600, base * (1 - hasteBonus()));
 }
 
 /** Armour soaks a random slice of the incoming blow, Tibia-style. */
@@ -196,8 +190,13 @@ function grantLoot(monster) {
       addGold(Math.floor(item.value * 0.6) * qty);
       continue;
     }
+    // Check before it lands: once it is in the backpack it compares against itself.
+    const upgrade = slotOf(item) ? isUpgrade(drop.item) : false;
     const added = addItem(drop.item, qty);
-    if (added > 0) gained.push(`${added}x ${item.name}`);
+    if (added > 0) {
+      gained.push(`${added}x ${item.name}`);
+      if (upgrade) pushLog(`${item.name} is better than what you are wearing.`, 'level');
+    }
   }
   return { gold, gained };
 }
@@ -281,4 +280,4 @@ export function combatStats() {
   };
 }
 
-export { regenTick, count };
+export { regenTick, count, playerAttackInterval };

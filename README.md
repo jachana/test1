@@ -29,6 +29,7 @@ over `file://`.
 | Combat skills | Fist, Club, Sword, Axe, Distance, Shielding, Magic Level |
 | Idle skills | Fishing and Rune Making — the only two things Tibia ever let you sit and repeat |
 | Quests | 16 one-time trips from The Bear Room to Ferumbras' Tower; two of them are the only way into Drefia and Hellgate, one opens the djinn trader, and the Annihilator makes you pick your chest before you walk in |
+| Gear comparison | Every wearable item is measured against what you have on — max hit, armor, defence, attack speed, skill bonuses — as a whole-character before/after, so it knows a rapier beats a battle axe when your sword skill is higher. Upgrades are marked in the backpack, tagged in shops, and called out in the log when they drop |
 | Hunting guide | Every area is costed against your actual character: exp/hour, gold/hour, seconds-to-kill per creature, damage taken, supplies needed and a safe/comfortable/risky/deadly verdict |
 | Hunting | 12 areas from the Rookgaard Sewers to Hellgate — Cyclopolis, Drefia, Deep Kazordoon — with 43 creatures, weighted spawns and loot tables |
 | Items | 173 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems |
