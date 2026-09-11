@@ -12,13 +12,14 @@ export const SHOPS = [
     id: 'dixi', npc: 'Dixi', icon: '👩', title: 'Thais Armoury',
     stock: ['chain_helmet', 'brass_helmet', 'steel_helmet', 'studded_armor', 'chain_armor',
       'brass_armor', 'plate_armor', 'studded_legs', 'chain_legs', 'brass_legs', 'plate_legs',
-      'brass_shield', 'plate_shield', 'battle_axe', 'longsword', 'battle_hammer'],
+      'brass_shield', 'plate_shield', 'battle_axe', 'longsword', 'battle_hammer',
+      'obsidian_lance', 'steel_shield', 'battle_shield', 'scale_armor', 'legion_helmet'],
   },
   {
     id: 'lily', npc: 'Lily', icon: '🧙‍♀️', title: 'Magic Shop & Apothecary',
     stock: ['blank_rune', 'health_potion', 'strong_health_potion', 'great_health_potion',
       'mana_potion', 'strong_mana_potion', 'great_mana_potion', 'silver_amulet',
-      'protection_amulet', 'power_ring'],
+      'protection_amulet', 'power_ring', 'dragon_necklace', 'stone_skin_amulet'],
   },
   {
     id: 'djinn', npc: 'Alesar', icon: '🧞', title: 'Green Djinn Trader', quest: 'djinn_trial',
@@ -27,7 +28,7 @@ export const SHOPS = [
   },
   {
     id: 'willie', npc: 'Willie', icon: '🧑‍🌾', title: 'Farmer & Fletcher',
-    stock: ['brown_mushroom', 'meat', 'ham', 'arrow', 'bolt', 'bow', 'crossbow', 'scimitar', 'barbarian_axe'],
+    stock: ['brown_mushroom', 'meat', 'ham', 'arrow', 'bolt', 'bow', 'crossbow', 'scimitar', 'barbarian_axe', 'axe_ring', 'sword_ring', 'club_ring'],
   },
 ];
 

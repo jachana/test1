@@ -31,7 +31,7 @@ over `file://`.
 | Quests | 16 one-time trips from The Bear Room to Ferumbras' Tower; two of them are the only way into Drefia and Hellgate, one opens the djinn trader, and the Annihilator makes you pick your chest before you walk in |
 | Hunting guide | Every area is costed against your actual character: exp/hour, gold/hour, seconds-to-kill per creature, damage taken, supplies needed and a safe/comfortable/risky/deadly verdict |
 | Hunting | 12 areas from the Rookgaard Sewers to Hellgate — Cyclopolis, Drefia, Deep Kazordoon — with 43 creatures, weighted spawns and loot tables |
-| Items | 137 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems |
+| Items | 173 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems |
 | Automation | Auto-eat, auto-potion, auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying (stops after three deaths without a kill) |
 | Offline | Up to 12 hours of away time is replayed on load and summarised in a welcome-back screen |
 
@@ -87,6 +87,7 @@ src/ui/
 tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
 tools/build-artifact.mjs  bundles the game into one self-contained HTML file
 tools/sprite-picker.html  click tiles on a sprite sheet to build src/data/sprites.js
+tools/import-otserv.mjs   pulls creature stats and loot tables from an OTServ data dump
 ```
 
 The state object is the single source of truth and is JSON-serialisable end to end; systems
@@ -99,10 +100,34 @@ gathering node one line in `src/data/actions.js`.
 Run `node tools/check-data.mjs` after touching content; it catches a typo'd item id in a
 loot table before the game does.
 
+## Where the numbers come from
+
+Creature health, experience, armour, defence and **loot tables with their real drop
+rates** are imported from the monster XML in
+[OpenTibiaArchives/otserv](https://github.com/OpenTibiaArchives/otserv) rather than typed
+from memory — a demon drops magic plate armor at 0.13% because that is what the server
+file says. Re-run the import after adding creatures or items:
+
+```bash
+git clone --depth 1 https://github.com/OpenTibiaArchives/otserv /tmp/otserv
+node tools/import-otserv.mjs /tmp/otserv --dry   # shows what maps and what it would skip
+node tools/import-otserv.mjs /tmp/otserv
+```
+
+It rewrites only the stats and loot on each `M(...)` line. Damage, attack speed and gold
+stay hand-tuned for idle pacing — server gold is capped at 100 coins per stack and split
+across bags, so importing it would read a demon as carrying 100 gold. Loot the game has
+no item for is reported and skipped, which conveniently keeps post-7.6 gear out. That
+dump targets 8.7, so a handful of its drops are an OT server's interpretation rather than
+7.6 canon.
+
 ## Sprites
 
-Items fall back to emoji, but the game can draw a real Tibia item sheet instead. Put the
-sheet at `assets/items.png`, open `tools/sprite-picker.html` (through the same local
+Items fall back to emoji, but the game can draw a real Tibia item sheet instead. Note
+that no open-source repo ships the game sprites — not OTServ, not
+[otclient](https://github.com/edubart/otclient) — because they live in the client's
+`Tibia.spr`/`Tibia.dat`, which you have to supply yourself. Put the sheet at
+`assets/items.png`, open `tools/sprite-picker.html` (through the same local
 server), and click each tile: it hands you the `itemId: tileIndex,` lines to paste into
 `src/data/sprites.js`. Anything you have not mapped keeps its emoji, so a partial mapping
 is fine.

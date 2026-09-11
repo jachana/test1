@@ -69,7 +69,7 @@ export const QUESTS = [
     id: 'behemoth_quest', name: 'Behemoth Quest', icon: '🗿', town: 'Edron', req: 50,
     ms: 480_000, dps: 55, exp: 30000, gold: 8000, needs: ['fibula_dungeon'],
     blurb: 'Four behemoths, one chest room, and no second chances at the door.',
-    rewards: [['dark_armor', 1], ['warrior_helmet', 1]],
+    rewards: [['dark_armor', 1], ['warrior_helmet', 1], ['great_axe', 1]],
   },
   {
     id: 'ghostlands_pass', name: 'The Ghostlands Pass', icon: '🕯️', town: 'Darashia', req: 55,
@@ -88,7 +88,7 @@ export const QUESTS = [
     id: 'black_knight_keep', name: "Black Knight's Keep", icon: '🏴', town: 'Edron', req: 70,
     ms: 540_000, dps: 95, exp: 70000, gold: 20000, needs: ['behemoth_quest'],
     blurb: 'He keeps a full armoury and he is not going to hand it over politely.',
-    rewards: [['knight_axe', 1], ['serpent_sword', 1]],
+    rewards: [['knight_axe', 1], ['serpent_sword', 1], ['bright_sword', 1]],
   },
   {
     id: 'hellgate_descent', name: 'Hellgate Descent', icon: '🔥', town: 'Kharos', req: 85,
@@ -114,7 +114,7 @@ export const QUESTS = [
     id: 'ferumbras_tower', name: "Ferumbras' Tower", icon: '🧙‍♂️', town: 'Edron', req: 120,
     ms: 900_000, dps: 300, exp: 900000, gold: 120000, needs: ['annihilator'],
     blurb: 'The old man himself. Nothing after this is harder.',
-    rewards: [['magic_plate_armor', 1], ['small_diamond', 10]],
+    rewards: [['magic_plate_armor', 1], ['ravagers_axe', 1], ['royal_crossbow', 1], ['small_diamond', 10]],
   },
 ];
 
