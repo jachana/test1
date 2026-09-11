@@ -1,4 +1,4 @@
-import { el, bar, card, button, itemIcon } from '../dom.js';
+import { el, bar, card, button, itemIcon, itemGlyph } from '../dom.js';
 import { S, pushLog } from '../../core/state.js';
 import { getItem, slotOf } from '../../data/items.js';
 import { sellPrice } from '../../data/shops.js';
@@ -117,7 +117,7 @@ export function inventoryView_({ rerender }) {
 
     detail.replaceChildren(
       el('div', { class: 'detail-head' }, [
-        el('span', { class: 'detail-icon', text: item.icon }),
+        itemGlyph(item, { class: 'detail-icon' }),
         el('div', {}, [
           el('div', { class: 'detail-name', text: item.name }),
           el('div', { class: 'muted small', text: `${formatNumber(count(item.id))} in backpack · ${item.type}` }),

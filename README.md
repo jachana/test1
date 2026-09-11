@@ -124,14 +124,29 @@ dump targets 8.7, so a handful of its drops are an OT server's interpretation ra
 
 ## Sprites
 
-Items fall back to emoji, but the game can draw a real Tibia item sheet instead. Note
-that no open-source repo ships the game sprites — not OTServ, not
+Items fall back to emoji, but the game can draw real Tibia sprites instead. No
+open-source repo ships them — not OTServ, not
 [otclient](https://github.com/edubart/otclient) — because they live in the client's
-`Tibia.spr`/`Tibia.dat`, which you have to supply yourself. Put the sheet at
-`assets/items.png`, open `tools/sprite-picker.html` (through the same local
-server), and click each tile: it hands you the `itemId: tileIndex,` lines to paste into
-`src/data/sprites.js`. Anything you have not mapped keeps its emoji, so a partial mapping
-is fine.
+`Tibia.spr`/`Tibia.dat`, so you supply your own dump.
+
+**The ids in a sprite dump are a trap.** Dumps are named after the *client* object id of
+whatever version they were ripped from, and that id space is not the *server* id space in
+any `items.xml` — nor is it stable between client versions, because CipSoft inserted items
+over time. Mapping a dump by name through items.xml looks like it works and quietly
+produces a Mastermind Shield that renders as a bunch of bananas. If your dump happens to
+share an id space with a server's `items.otb`, `tools/import-sprites.mjs` will do the job
+automatically; verify a handful of the results before trusting it.
+
+Otherwise map by eye, which is quick with the picker:
+
+1. Put the PNGs somewhere under the repo, e.g. `tmp-sprites/`
+2. Open `tools/sprite-picker.html` through the local server
+3. It shows one item at a time and the whole sprite folder as a grid — click the match,
+   press <kbd>S</kbd> to skip, <kbd>Z</kbd> to undo
+4. Copy the two outputs into `src/data/sprites.js` and `src/sprites.css`
+
+Anything unmapped keeps its emoji, so a partial mapping renders fine — map the weapons and
+armour you actually see and leave the junk on emoji.
 
 ## Ideas worth building next
 

@@ -11,7 +11,7 @@ import { SPELLS } from '../src/data/spells.js';
 import { SKILLS } from '../src/data/skills.js';
 import { VOCATIONS, CHOOSABLE } from '../src/data/vocations.js';
 import { QUESTS } from '../src/data/quests.js';
-import { SPRITES } from '../src/data/sprites.js';
+import { SPRITE_IDS } from '../src/data/sprites.js';
 
 const problems = [];
 const item = (id, where) => {
@@ -76,7 +76,7 @@ for (const q of QUESTS) {
 for (const shop of SHOPS) {
   if (shop.quest && !questIds.has(shop.quest)) problems.push(`shop ${shop.id}: unknown quest "${shop.quest}"`);
 }
-for (const id of Object.keys(SPRITES)) item(id, 'sprite mapping');
+for (const id of SPRITE_IDS) item(id, 'sprite mapping');
 
 // Warn about content nobody can reach.
 const spawned = new Set(AREAS.flatMap((a) => a.spawns.map(([id]) => id)));

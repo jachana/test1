@@ -1,4 +1,4 @@
-import { SHEET, spritePosition } from '../data/sprites.js';
+import { hasSprite } from '../data/sprites.js';
 
 export function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);
@@ -46,17 +46,16 @@ export function clear(node) {
   return node;
 }
 
+/** The item's sprite where we have one, its emoji where we do not. */
+export function itemGlyph(item, { class: cls = '' } = {}) {
+  return hasSprite(item.id)
+    ? el('span', { class: `sprite spr-${item.id} ${cls}`.trim(), title: item.name })
+    : el('span', { class: `glyph ${cls}`.trim(), text: item.icon, title: item.name });
+}
+
 export function itemIcon(item, qty) {
-  const pos = spritePosition(item.id);
-  const glyph = pos
-    ? el('span', {
-      class: 'sprite',
-      style: `background-image:url(${SHEET.src});background-position:${pos.x}px ${pos.y}px;`
-        + `width:${SHEET.tile}px;height:${SHEET.tile}px`,
-    })
-    : item.icon;
   return el('span', { class: 'item-icon', title: item.name }, [
-    glyph,
+    itemGlyph(item),
     qty != null && qty > 1 ? el('span', { class: 'item-qty', text: qty > 9999 ? `${Math.floor(qty / 1000)}k` : String(qty) }) : null,
   ]);
 }

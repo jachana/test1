@@ -1,4 +1,4 @@
-import { el, bar, card, button } from '../dom.js';
+import { el, bar, card, button, itemGlyph } from '../dom.js';
 import { S } from '../../core/state.js';
 import { QUESTS, getQuest } from '../../data/quests.js';
 import { getItem } from '../../data/items.js';
@@ -31,7 +31,10 @@ export function questsView({ rerender }) {
       const rewardChips = [
         ...(quest.rewards ?? []).map(([id, qty]) => {
           const item = getItem(id);
-          return el('span', { class: 'cost', text: `${item.icon} ${qty > 1 ? `${qty}x ` : ''}${item.name}` });
+          return el('span', { class: 'cost' }, [
+            itemGlyph(item, { class: 'inline-sprite' }),
+            `${qty > 1 ? `${qty}x ` : ''}${item.name}`,
+          ]);
         }),
         quest.gold ? el('span', { class: 'cost', text: `🪙 ${formatNumber(quest.gold)}` }) : null,
         el('span', { class: 'cost', text: `✨ ${formatNumber(quest.exp)} exp` }),
@@ -44,7 +47,7 @@ export function questsView({ rerender }) {
           el('span', { class: 'muted small', text: 'Pick one:' }),
           ...quest.choice.map((id) => {
             const item = getItem(id);
-            return button(`${item.icon} ${item.name}`, () => {
+            return button(item.name, () => {
               chooseReward(quest.id, id);
               renderList();
             }, { class: chosen === id ? 'active' : '' });

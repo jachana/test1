@@ -1,4 +1,4 @@
-import { el, bar, card, button } from '../dom.js';
+import { el, bar, card, button, itemGlyph } from '../dom.js';
 import { S } from '../../core/state.js';
 import { SKILLS } from '../../data/skills.js';
 import { VOCATIONS, VOCATION_LEVEL, canChooseVocation } from '../../data/vocations.js';
@@ -50,10 +50,11 @@ export function characterView({ rerender }) {
       const item = id ? getItem(id) : null;
       return el('button', {
         class: `slot${item ? ' filled' : ''}`,
+        dataset: { slot: slot.id },
         title: item ? `${item.name} — click to take off` : slot.name,
         onClick: () => { if (item) { unequip(slot.id); rerender(); } },
       }, [
-        el('span', { class: 'slot-icon', text: item ? item.icon : slot.icon }),
+        item ? itemGlyph(item, { class: 'slot-icon' }) : el('span', { class: 'slot-icon', text: slot.icon }),
         el('span', { class: 'slot-name', text: item ? item.name : slot.name }),
       ]);
     }));

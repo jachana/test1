@@ -21,13 +21,15 @@ execFileSync('npx', ['--yes', 'esbuild@0.25.0', 'src/main.js', '--bundle', '--fo
 
 const fonts = readFileSync(join(root, 'src/fonts.css'), 'utf8');
 const css = readFileSync(join(root, 'src/styles.css'), 'utf8');
+const sprites = readFileSync(join(root, 'src/sprites.css'), 'utf8');
 const js = readFileSync(bundlePath, 'utf8');
 rmSync(bundlePath);
 
 const page = `<title>Tibia Idle</title>
 <style>
 ${fonts}
-${css}</style>
+${css}
+${sprites}</style>
 <div id="app"></div>
 <script>
 ${js}</script>

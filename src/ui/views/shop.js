@@ -1,4 +1,4 @@
-import { el, card, button } from '../dom.js';
+import { el, card, button, itemGlyph } from '../dom.js';
 import { S, pushLog } from '../../core/state.js';
 import { getItem } from '../../data/items.js';
 import { SHOPS, buyPrice, sellPrice } from '../../data/shops.js';
@@ -64,7 +64,7 @@ export function shopView() {
         const have = count(itemId);
         const locked = item.reqLevel && S.char.level < item.reqLevel;
         return el('div', { class: 'shop-row' }, [
-          el('span', { class: 'shop-icon', text: item.icon }),
+          itemGlyph(item, { class: 'shop-icon' }),
           el('div', { class: 'shop-main' }, [
             el('div', { class: 'row space' }, [
               el('span', { text: item.name }),
