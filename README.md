@@ -28,13 +28,17 @@ over `file://`.
 | Vocations | Citizen until level 8, then Knight, Paladin, Sorcerer or Druid — permanent, and it gates spells, rune making and the mainland |
 | Combat skills | Fist, Club, Sword, Axe, Distance, Shielding, Magic Level |
 | Idle skills | Fishing and Rune Making — the only two things Tibia ever let you sit and repeat |
-| Quests | 16 one-time trips from The Bear Room to Ferumbras' Tower; two of them are the only way into Drefia and Hellgate, one opens the djinn trader, and the Annihilator makes you pick your chest before you walk in |
+| Quests | 16 one-time trips from The Bear Room to Ferumbras' Tower; three of them are the only way into Drefia, Hellgate and the citadel, one opens the djinn trader, and the Annihilator makes you pick your chest before you walk in. Each is worth a third of a level at the start of the chain, rising to three quarters for the last two |
 | Gear comparison | Every wearable item is measured against what you have on — max hit, armor, defence, attack speed, skill bonuses — as a whole-character before/after, so it knows a rapier beats a battle axe when your sword skill is higher. Upgrades are marked in the backpack, tagged in shops, and called out in the log when they drop |
 | Hunting guide | Every area is costed against your actual character: exp/hour, gold/hour, seconds-to-kill per creature, damage taken, supplies needed and a safe/comfortable/risky/deadly verdict |
-| Hunting | 12 areas from the Rookgaard Sewers to Hellgate — Cyclopolis, Drefia, Deep Kazordoon — with 43 creatures, weighted spawns and loot tables |
-| Items | 173 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems |
-| Automation | Auto-eat, auto-potion, auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying (stops after three deaths without a kill) |
-| Offline | Up to 12 hours of away time is replayed on load and summarised in a welcome-back screen |
+| Hunting | 13 areas from the Rookgaard Sewers to Ferumbras' Citadel — Cyclopolis, Drefia, Deep Kazordoon, Hellgate — with 46 creatures, weighted spawns and loot tables. Every area has an identity: the orc fortress is loot, the desert is gold, the ghostlands are experience, the citadel is the only place golden legs and a demon shield actually drop |
+| Champions | About one spawn in forty comes up bigger, hits harder, is worth three times as much and rolls its loot table twice |
+| Bestiary | What you know about a creature is what you have killed of it. Kill tiers reveal its statistics, then its damage and armour, then its full loot table — and the last three pay, up to +10% experience and +10% drop chance from that creature |
+| Soul board | Every kill is a soul point, a champion is eight, and they buy nine permanent perks. The only progression a death cannot take back; the whole board is about 55–110 hours of hunting |
+| Items | 173 items — rapier to magic sword, leather to golden legs, runes, potions, food, gems — in five rarities derived from value |
+| Automation | Auto-eat, auto-potion (one every two seconds, and it drinks the cheapest one that covers the wound), auto-heal spell, auto-attack spell, auto-sell junk, walk back after dying (stops after three deaths inside ten minutes, or when the potions run out) |
+| Offline | Up to 12 hours of away time is replayed on load and summarised in a welcome-back screen — what you earned, what dropped, and what stopped you |
+| Sound | Short blips synthesised with OscillatorNode, since there are no asset files. Off by default |
 
 ## The formulas are the real ones
 
@@ -48,8 +52,11 @@ comes straight from the game (see `src/core/formulas.js`):
   but with `factor 2.0`, so they are still at sword 20 while the knight is at 60.
 - **Magic level:** `1600 · factor^ml` mana spent, with 1.1 for mages, 1.4 for paladins, 3.0 for knights.
   You raise it by *spending* mana — casting spells or making runes.
-- **Damage:** `max = 0.085 · stanceFactor · weaponAttack · skill + level/5`, with Full
-  Attack / Balanced / Full Defence trading damage against blocking.
+- **Damage:** `max = 0.085 · weaponAttack · skill / attackFactor + level/5`. The stance is a
+  *divisor*, as it is in the real client — Full Attack 1.0, Balanced 1.2, Full Defence 2.0 —
+  and the same three multiply your defence by 0.5, 1.0 and 1.5. Treating it as a multiplier
+  instead handed out 2.4× Tibia's damage, and nothing in the game could kill anybody past
+  about level 14.
 - **Armour:** soaks a random slice between `0.475·armor` and `armor` off every hit.
 
 Deliberate departures from canon, for the sake of a playable idle game: there is no death
@@ -58,9 +65,19 @@ and health and mana regenerate four times faster between spawns and in larger ch
 high level (an idle hunt cannot restock potions). There are no crafting professions,
 because Tibia never had any: progression outside hunting is quests.
 
+Two more, both about a character nobody is watching. Potions carry a two-second exhaust,
+or automation would empty a backpack into a single blow and make death impossible; and a
+character who runs out of potions walks home rather than dying three times in a row.
+
 Content is kept to roughly what existed in 7.6: no Tiquanda, no Ankrahmun, no ice
 islands — so no hydras, serpent spawns or frost dragons. The deep end is Behemoths, Black
-Knights, Heroes, Warlocks and Demons.
+Knights, Heroes, Warlocks and Demons, and past them Orshabaal, Ghazbaran and Ferumbras,
+who is the one thing in the game that comes back after you kill him.
+
+The two casters share Tibia's stat block, which is correct for 7.6, but not its spellbook:
+a druid that held every sorcerer spell but three was a strictly worse sorcerer. They split
+on element — the sorcerer keeps fire and energy and hits hardest, the druid takes the ice
+line, gets Mass Healing, and multiplies every heal it casts.
 
 ## Code layout
 
@@ -79,13 +96,19 @@ src/systems/
   combat.js           the fight loop, loot, auto-cast, auto-return
   idle.js             fishing and rune making
   quests.js           quest runs, chests, prerequisites and unlocks
-  guide.js            hunting-ground estimates: exp/h, gp/h, danger, notable drops
+  guide.js            hunting-ground estimates: exp/h, gp/h, danger, notable and exclusive drops
+  bestiary.js         kill tiers: what you have earned the right to know, and what it pays
+  perks.js            the soul board — souls in, permanent effects out
+  compare.js          whole-character before/after for any wearable item
   inventory.js        stacks, weight/capacity, equipment, derived stats
 src/ui/
   app.js              shell, nav, routing, header, log, toasts, offline modal
-  dom.js              el() / bar() / card() / button() helpers
+  dom.js              el() / bar() / card() / button() / kvList() helpers
+  sound.js            OscillatorNode blips; nothing is constructed until the first one plays
   views/              one module per page (incl. the level 8 vocation chooser)
 tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
+tools/balance.mjs         hunts every area for a simulated hour at fifteen levels
+tools/smoke.mjs           loads the real page in a browser and fails on any console error
 tools/build-artifact.mjs  bundles the game into one self-contained HTML file
 tools/sprite-picker.html  click tiles on a sprite sheet to build src/data/sprites.js
 tools/import-otserv.mjs   pulls creature stats and loot tables from an OTServ data dump
@@ -98,8 +121,28 @@ gathering node one line in `src/data/actions.js`.
 
 `window.game.state` is exposed in the console for poking at a live save.
 
-Run `node tools/check-data.mjs` after touching content; it catches a typo'd item id in a
-loot table before the game does.
+Run `npm test` after touching anything: 43 tests that drive the engine headless, plus
+`tools/check-data.mjs`, which catches a typo'd item id in a loot table before the game does.
+
+## Balancing
+
+Twelve of the thirteen areas used to be a menu where six were never the right answer.
+`tools/balance.mjs` is what fixed that and is what to re-run after touching a creature, a
+multiplier or a formula:
+
+```bash
+node tools/balance.mjs            # one simulated hour per area, per level band
+node tools/balance.mjs 3          # three hours, for tighter numbers
+node tools/balance.mjs 1 demona   # just that area
+```
+
+It hunts every area for a simulated hour at fifteen levels with the gear a character of
+that level plausibly has, and prints experience, gold, deaths, potions drunk, and how far
+the hunting guide's prediction sits from the measurement — that last column should stay
+near 1.00, and a drift in it means the guide and the fight have come apart. It finishes
+with the best hunt and the best gold at each level, and names any area that is neither,
+and is not the only source of something worth having. Every `req` in `src/data/areas.js`
+is the lowest level at which that run finishes the hour alive.
 
 ## Where the numbers come from
 
