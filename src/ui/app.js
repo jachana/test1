@@ -18,6 +18,7 @@ import { shopView } from './views/shop.js';
 import { settingsView } from './views/settings.js';
 import { questsView } from './views/quests.js';
 import { bestiaryView } from './views/bestiary.js';
+import { perksView } from './views/perks.js';
 import { getQuest } from '../data/quests.js';
 import { vocationModal } from './views/vocation.js';
 import { canChooseVocation, VOCATIONS } from '../data/vocations.js';
@@ -28,6 +29,7 @@ const NAV = [
   { route: 'combat', label: 'Hunt', icon: '⚔️' },
   { route: 'quests', label: 'Quests', icon: '📜' },
   { route: 'bestiary', label: 'Bestiary', icon: '📖' },
+  { route: 'perks', label: 'Soul Board', icon: '✨' },
   { route: 'inventory', label: 'Backpack', icon: '🎒' },
   { route: 'shop', label: 'Traders', icon: '🏪' },
   { group: 'Skills' },
@@ -51,6 +53,7 @@ function buildView(ctx) {
     case 'settings': return settingsView(ctx);
     case 'quests': return questsView(ctx);
     case 'bestiary': return bestiaryView(ctx);
+    case 'perks': return perksView(ctx);
     case 'combat':
     default: return combatView(ctx);
   }
@@ -99,6 +102,7 @@ function buildHeader() {
   const foodBar = bar(0, { className: 'food' });
   const activity = el('div', { class: 'hdr-activity' });
   const gold = el('div', { class: 'gold' });
+  const soulCount = el('div', { class: 'souls' });
   const cap = el('div', { class: 'muted small' });
 
   shellUpdates.push(() => {
@@ -114,6 +118,7 @@ function buildHeader() {
     const act = currentActivity();
     activity.textContent = `${act.icon} ${act.text}`;
     gold.textContent = `🪙 ${formatNumber(S.gold)}`;
+    soulCount.textContent = `✨ ${formatNumber(S.char.soul ?? 0)}`;
     cap.textContent = `${Math.floor(capacity() - totalWeight())} oz free`;
   });
 
@@ -125,7 +130,7 @@ function buildHeader() {
       el('div', { class: 'row space' }, [name, level]),
       el('div', { class: 'hdr-bars' }, [hpBar, mpBar, expBar, foodBar]),
     ]),
-    el('div', { class: 'hdr-right' }, [activity, gold, cap]),
+    el('div', { class: 'hdr-right' }, [activity, el('div', { class: 'row' }, [gold, soulCount]), cap]),
   ]);
 }
 
@@ -325,6 +330,7 @@ export function mountShell(root) {
   on('quest:done', ({ quest }) => { toast(`${quest.icon} ${quest.name} complete!`, 'quest'); play('quest'); rerender(); });
   on('idle:complete', ({ rare }) => { if (rare) play('loot'); });
   on('potion', () => play('potion'));
+  on('perk:bought', ({ perk, rank }) => { toast(`${perk.icon} ${perk.name} ${rank}`, 'level'); play('level'); });
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

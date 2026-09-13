@@ -1,9 +1,9 @@
 import { S } from '../core/state.js';
 import { getItem, slotOf } from '../data/items.js';
 import { SKILLS } from '../data/skills.js';
-import { maxHit, defenceValue } from '../core/formulas.js';
+import { defenceValue } from '../core/formulas.js';
 import { hasteBonus, regenBonus, shieldDefence, skillBonus, totalArmour } from './inventory.js';
-import { playerAttackInterval, skillLevel, weaponProfile } from './player.js';
+import { playerAttackInterval, playerMaxHit, skillLevel, weaponProfile } from './player.js';
 
 /**
  * What your character actually looks like right now, in the numbers that decide
@@ -14,7 +14,7 @@ function snapshot() {
   const profile = weaponProfile();
   const skill = skillLevel(profile.skill);
   return {
-    maxHit: maxHit(profile.attack, skill, S.char.level, S.settings.attackMode),
+    maxHit: playerMaxHit(profile),
     armour: totalArmour(),
     defence: Math.round(defenceValue(skillLevel('shielding'), shieldDefence(), S.settings.attackMode)),
     interval: playerAttackInterval(),

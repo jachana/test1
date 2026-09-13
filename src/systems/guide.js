@@ -5,12 +5,12 @@ import { getItem, ITEMS } from '../data/items.js';
 import { SPELLS } from '../data/spells.js';
 import { buyPrice, sellPrice } from '../data/shops.js';
 import {
-  blockChance, defenceValue, expectedAfterArmour, hitChance, maxHit,
+  blockChance, defenceValue, expectedAfterArmour, hitChance,
   RESPAWN_MS, RESTING_SPEEDUP,
 } from '../core/formulas.js';
 import { totalArmour, shieldDefence } from './inventory.js';
 import { bestiaryExpBonus, bestiaryLootBonus } from './bestiary.js';
-import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile, castValue } from './player.js';
+import { maxHp, playerAttackInterval, playerMaxHit, skillLevel, vocation, weaponProfile, castValue } from './player.js';
 
 const RESPAWN_S = RESPAWN_MS / 1000;
 
@@ -23,7 +23,7 @@ const RESPAWN_S = RESPAWN_MS / 1000;
 function outgoingDps(monster) {
   const profile = weaponProfile();
   const skill = skillLevel(profile.skill);
-  const max = maxHit(profile.attack, skill, S.char.level, S.settings.attackMode);
+  const max = playerMaxHit(profile);
   const lo = Math.max(1, Math.floor(max * 0.4));
   const perSwing = hitChance(skill, monster.def) * expectedAfterArmour(lo, max, monster.arm, 1);
   const weapon = perSwing / (playerAttackInterval() / 1000);

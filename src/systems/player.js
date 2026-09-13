@@ -3,11 +3,14 @@ import { SKILLS, MAX_SKILL_LEVEL } from '../data/skills.js';
 import { VOCATIONS, CHOOSABLE, VOCATION_LEVEL, canChooseVocation } from '../data/vocations.js';
 import { getItem } from '../data/items.js';
 import {
-  expForLevel, levelForExp, maxHealth, maxMana, spellHit, triesToAdvance, RESTING_SPEEDUP,
+  expForLevel, levelForExp, maxHealth, maxHit, maxMana, spellHit, triesToAdvance, RESTING_SPEEDUP,
 } from '../core/formulas.js';
 import { clamp, ratio } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { count, removeItem, equipped, hasteBonus, regenBonus, skillBonus } from './inventory.js';
+import {
+  perkAttackSpeed, perkDamage, perkDeathPenalty, perkHealth, perkRegen,
+} from './perks.js';
 
 export const FOOD_CAP_SECONDS = 20 * 60; // Tibia tops you up at ~20 minutes
 const BASE_ATTACK_MS = 2000;
@@ -36,10 +39,10 @@ export const DEATH_WINDOW_MS = 10 * 60 * 1000;
 export function playerAttackInterval() {
   const weapon = equipped('weapon');
   const base = weapon?.twoHanded ? BASE_ATTACK_MS * 1.2 : BASE_ATTACK_MS;
-  return Math.max(600, base * (1 - hasteBonus()));
+  return Math.max(600, base * (1 - hasteBonus()) * perkAttackSpeed());
 }
 
-export const maxHp = () => maxHealth(S.char.level, S.char.vocation);
+export const maxHp = () => Math.round(maxHealth(S.char.level, S.char.vocation) * perkHealth());
 export const maxMp = () => maxMana(S.char.level, S.char.vocation);
 export const vocation = () => VOCATIONS[S.char.vocation];
 
@@ -82,7 +85,7 @@ export { canChooseVocation, VOCATION_LEVEL };
 
 export function loseExpOnDeath(fraction = 0.1) {
   const floorExp = expForLevel(S.char.level);
-  const lost = Math.floor(S.char.exp * fraction);
+  const lost = Math.floor(S.char.exp * fraction * perkDeathPenalty());
   S.char.exp = Math.max(0, S.char.exp - lost);
   S.char.level = levelForExp(S.char.exp);
 
@@ -104,6 +107,19 @@ export function gainSkill(skillId, tries = 1) {
     emit('skillup', { skillId, level: skill.level });
     need = triesToAdvance(skillId, skill.level, S.char.vocation);
   }
+}
+
+/**
+ * Maximum hit for this character with the weapon they are holding.
+ *
+ * Four places computed this straight from the formula — combat, the character
+ * sheet, the gear comparison and the hunting guide — which is exactly the shape
+ * of bug that let the sorcerer and the druid share a damage number. Anything
+ * that wants to know how hard you hit asks here.
+ */
+export function playerMaxHit(profile = weaponProfile()) {
+  const base = maxHit(profile.attack, skillLevel(profile.skill), S.char.level, S.settings.attackMode);
+  return Math.max(1, Math.round(base * perkDamage()));
 }
 
 /**
@@ -161,7 +177,7 @@ export function regenTick(dt) {
     const hpEvery = (voc.hpRegen.seconds * 1000) / (resting ? RESTING_SPEEDUP : 1);
     while (t.hpRegen >= hpEvery) {
       t.hpRegen -= hpEvery;
-      if (S.char.hp < maxHp()) heal(voc.hpRegen.amount + regenBonus() + tickSize);
+      if (S.char.hp < maxHp()) heal(Math.round((voc.hpRegen.amount + regenBonus() + tickSize) * perkRegen()));
     }
   } else {
     t.hpRegen = 0;
@@ -172,7 +188,7 @@ export function regenTick(dt) {
   const manaEvery = (voc.manaRegen.seconds * 1000 * (S.char.food > 0 ? 1 : 2.5)) / (resting ? RESTING_SPEEDUP : 1);
   while (t.manaRegen >= manaEvery) {
     t.manaRegen -= manaEvery;
-    if (S.char.mana < maxMp()) restoreMana(voc.manaRegen.amount + regenBonus() + tickSize);
+    if (S.char.mana < maxMp()) restoreMana(Math.round((voc.manaRegen.amount + regenBonus() + tickSize) * perkRegen()));
   }
 }
 

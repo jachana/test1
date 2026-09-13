@@ -2,6 +2,7 @@ import { S, pushLog } from '../core/state.js';
 import { getItem, slotOf } from '../data/items.js';
 import { maxCapacity } from '../core/formulas.js';
 import { emit } from '../core/bus.js';
+import { perkArmour, perkCapacity } from './perks.js';
 
 export function count(itemId) {
   return S.inventory.find((e) => e.id === itemId)?.qty ?? 0;
@@ -17,7 +18,7 @@ export function totalWeight() {
 }
 
 export function capacity() {
-  return maxCapacity(S.char.level, S.char.vocation);
+  return Math.round(maxCapacity(S.char.level, S.char.vocation) * perkCapacity());
 }
 
 export function freeCapacity() {
@@ -156,9 +157,9 @@ function worn() {
   return summary;
 }
 
-/** Aggregated armour from every worn piece. */
+/** Aggregated armour from every worn piece, plus whatever the board adds. */
 export function totalArmour() {
-  return worn().armour;
+  return worn().armour + perkArmour();
 }
 
 export function shieldDefence() {

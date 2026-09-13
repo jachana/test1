@@ -5,6 +5,7 @@ import { MONSTERS } from '../data/monsters.js';
 import { AREAS } from '../data/areas.js';
 import { QUESTS } from '../data/quests.js';
 import { SPELLS } from '../data/spells.js';
+import { PERKS } from '../data/perks.js';
 import { getAction } from '../data/actions.js';
 import { levelForExp, maxHealth, maxMana } from './formulas.js';
 import { emit } from './bus.js';
@@ -40,7 +41,7 @@ export function createState(name, vocation = 'none') {
       hp: 150,
       mana: 35,
       food: 0, // seconds of regeneration left
-      soul: 100,
+      soul: 0, // spent on the perk board; every kill is one
       vocationChosenAt: null, // timestamp of the level 8 decision
     },
     skills: freshSkills(),
@@ -72,9 +73,13 @@ export function createState(name, vocation = 'none') {
       sound: false, // an idle game lives in a background tab; ask before making noise
       volume: 0.25,
     },
+    perks: {}, // perk id -> rank
     quests: { done: [], choice: {} },
     logSeq: 0, // monotonic: the log's signature for the UI
-    stats: { kills: {}, deaths: 0, deathStreak: 0, goldEarned: 0, expEarned: 0, playtimeMs: 0, actionsDone: 0, itemsGathered: 0 },
+    stats: {
+      kills: {}, deaths: 0, deathStreak: 0, goldEarned: 0, expEarned: 0,
+      playtimeMs: 0, actionsDone: 0, itemsGathered: 0, rareDrops: 0, soulsEarned: 0,
+    },
     log: [],
   };
   state.char.hp = maxHealth(1, voc);
@@ -152,6 +157,7 @@ function migrate(raw) {
     timers: { ...base.timers, ...raw.timers },
     settings: { ...base.settings, ...raw.settings },
     stats: { ...base.stats, ...raw.stats },
+    perks: { ...raw.perks },
     quests: { done: [], choice: {}, ...raw.quests },
     inventory: Array.isArray(raw.inventory) ? raw.inventory : base.inventory,
     log: Array.isArray(raw.log) ? raw.log.slice(-MAX_LOG) : [],
@@ -209,6 +215,16 @@ function sanitise(state) {
   for (const id of Object.keys(state.stats.kills ?? {})) {
     if (!MONSTERS[id]) delete state.stats.kills[id];
   }
+
+  // A perk that has been cut, or a rank beyond what it now offers, would keep
+  // paying out forever from a save nobody can see into.
+  state.perks = state.perks ?? {};
+  for (const [id, at] of Object.entries(state.perks)) {
+    const perk = PERKS.find((p) => p.id === id);
+    if (!perk) delete state.perks[id];
+    else state.perks[id] = Math.max(0, Math.min(perk.max, Math.floor(at) || 0));
+  }
+  state.char.soul = Math.max(0, Math.floor(state.char.soul) || 0);
 
   // Experience is the source of truth; a level that disagrees with it would
   // otherwise stick forever, since gainExp only ever raises the level.

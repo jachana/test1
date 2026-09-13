@@ -4,20 +4,22 @@ import { getMonster, asChampion, CHAMPION, CHAMPION_CHANCE } from '../data/monst
 import { SPELLS } from '../data/spells.js';
 import { getItem, slotOf } from '../data/items.js';
 import {
-  applyArmour, blockChance, defenceValue, hitChance, maxHit, RESPAWN_MS,
+  applyArmour, blockChance, defenceValue, hitChance, RESPAWN_MS,
 } from '../core/formulas.js';
 import { clamp, pickWeighted, randInt, roll } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { addGold, addItem, count, removeItem, totalArmour, shieldDefence } from './inventory.js';
 import {
   autoEat, autoPotion, death, gainExp, gainSkill, heal, maxHp, maxMp,
-  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile, castValue, DEATH_WINDOW_MS,
+  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile, castValue,
+  playerMaxHit, DEATH_WINDOW_MS,
 } from './player.js';
 import { VOCATION_LEVEL } from '../data/vocations.js';
 import { questGateFor } from '../data/quests.js';
 import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
 import { bestiaryExpBonus, bestiaryLootBonus } from './bestiary.js';
+import { grantSouls, perkGold, perkLoot } from './perks.js';
 
 /** A drop this unlikely is worth interrupting the player for. */
 const RARE_DROP = 0.02;
@@ -127,7 +129,7 @@ function playerAttack(monster) {
     return;
   }
 
-  const max = maxHit(profile.attack, skill, S.char.level, S.settings.attackMode);
+  const max = playerMaxHit(profile);
   let damage = randInt(Math.max(1, Math.floor(max * 0.4)), max);
   damage += profile.elemDmg ? randInt(1, profile.elemDmg) : 0;
   damage = applyArmour(damage, monster.arm, 1);
@@ -207,13 +209,13 @@ function castSpells(dt) {
 }
 
 function grantLoot(monster, area) {
-  const gold = Math.round(randInt(monster.gold[0], monster.gold[1]) * goldMult(area));
+  const gold = Math.round(randInt(monster.gold[0], monster.gold[1]) * goldMult(area) * perkGold());
   if (gold > 0) addGold(gold);
 
   const gained = [];
   // A champion is rolled against its own loot table twice.
   const rolls = monster.champion ? CHAMPION.lootRolls : 1;
-  const lootBonus = bestiaryLootBonus(monster.id);
+  const lootBonus = bestiaryLootBonus(monster.id) * perkLoot();
   for (let i = 0; i < rolls; i++) for (const drop of monster.loot) {
     if (!roll(Math.min(1, drop.chance * lootBonus))) continue;
     const qty = randInt(drop.lo, drop.hi);
@@ -242,6 +244,7 @@ function killMonster(monster, area) {
   // well stay worth going back to.
   const exp = Math.round(monster.exp * expMult(area) * bestiaryExpBonus(monster.id));
   gainExp(exp);
+  grantSouls(monster);
   S.stats.kills[monster.id] = (S.stats.kills[monster.id] ?? 0) + 1;
   const { gold, gained } = grantLoot(monster, area);
   const parts = [];
@@ -338,7 +341,7 @@ export function combatStats() {
   return {
     profile,
     skill,
-    maxHit: maxHit(profile.attack, skill, S.char.level, S.settings.attackMode),
+    maxHit: playerMaxHit(profile),
     armour: totalArmour(),
     defence: Math.round(defenceValue(skillLevel('shielding'), shieldDefence(), S.settings.attackMode)),
     attackSpeed: playerAttackInterval(),
