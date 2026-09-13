@@ -1,5 +1,6 @@
 import { S } from '../core/state.js';
 import { getMonster } from '../data/monsters.js';
+import { expMult, goldMult } from '../data/areas.js';
 import { getItem, ITEMS } from '../data/items.js';
 import { SPELLS } from '../data/spells.js';
 import { buyPrice, sellPrice } from '../data/shops.js';
@@ -53,12 +54,26 @@ function damagePerBlow(monster) {
   return perHit / (monster.max - monster.min + 1);
 }
 
-/** Average gold from one kill, counting loot you could sell. */
-function killValue(monster) {
-  const gold = (monster.gold[0] + monster.gold[1]) / 2;
+/**
+ * Gold per ounce at which a drop is fully worth its place in the backpack.
+ *
+ * On a long hunt the pack is always full, so loot is not free income — every
+ * chain armour you carry out is a warrior helmet you did not. Counting all of
+ * it at shop price told players the minotaur caves out-earned the orc fortress;
+ * hunting both for an hour says the opposite by a factor of two, because the
+ * minotaur drops are dense worthless plate and the orcs pay in coin.
+ */
+const WORTH_CARRYING = 15;
+
+/** Average gold from one kill: coins, plus the loot that earns its weight. */
+function killValue(monster, area) {
+  const gold = ((monster.gold[0] + monster.gold[1]) / 2) * goldMult(area);
   const loot = monster.loot.reduce((sum, d) => {
-    const qty = (d.lo + d.hi) / 2;
-    return sum + d.chance * qty * sellPrice(d.item);
+    const item = getItem(d.item);
+    const value = sellPrice(d.item);
+    const perOunce = item.wt > 0 ? (value * 10) / item.wt : Infinity;
+    const carried = Math.min(1, perOunce / WORTH_CARRYING);
+    return sum + d.chance * ((d.lo + d.hi) / 2) * value * carried;
   }, 0);
   return gold + loot;
 }
@@ -81,7 +96,7 @@ function blowsBefore(swings, intervalMs, speedMs) {
   return at(lo) * (1 - frac) + at(lo + 1) * frac;
 }
 
-export function monsterEstimate(monsterId) {
+export function monsterEstimate(monsterId, area = null) {
   const monster = getMonster(monsterId);
   const dps = outgoingDps(monster);
   const intervalMs = playerAttackInterval();
@@ -101,8 +116,8 @@ export function monsterEstimate(monsterId) {
   return {
     monster,
     ttk,
-    expPerHour: (3600 / cycle) * monster.exp,
-    goldPerHour: (3600 / cycle) * killValue(monster),
+    expPerHour: (3600 / cycle) * monster.exp * expMult(area),
+    goldPerHour: (3600 / cycle) * killValue(monster, area),
     incoming: damagePerKill / cycle,
     damagePerKill,
   };
@@ -144,7 +159,7 @@ const VERDICTS = {
  */
 export function areaEstimate(area) {
   const totalWeight = area.spawns.reduce((sum, [, w]) => sum + w, 0);
-  const parts = area.spawns.map(([id, weight]) => ({ ...monsterEstimate(id), share: weight / totalWeight }));
+  const parts = area.spawns.map(([id, weight]) => ({ ...monsterEstimate(id, area), share: weight / totalWeight }));
 
   const expPerHour = parts.reduce((sum, p) => sum + p.expPerHour * p.share, 0);
   const goldPerHour = parts.reduce((sum, p) => sum + p.goldPerHour * p.share, 0);

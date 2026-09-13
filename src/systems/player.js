@@ -12,6 +12,26 @@ import { count, removeItem, equipped, hasteBonus, regenBonus, skillBonus } from 
 export const FOOD_CAP_SECONDS = 20 * 60; // Tibia tops you up at ~20 minutes
 const BASE_ATTACK_MS = 2000;
 
+/**
+ * Exhaustion between potions, in milliseconds.
+ *
+ * Without it autoPotion ran on every combat slice and would empty the whole
+ * backpack into one blow, which made death impossible for anyone who could
+ * afford a stack of potions — around level 14 onwards. Tibia exhausts you for
+ * about a second; two is the number that keeps a hard hunt actually lethal.
+ */
+export const POTION_EXHAUST_MS = 2000;
+
+/**
+ * How long a death keeps counting towards the streak that sends you home.
+ *
+ * The streak used to reset on any kill, so a character that died, walked back,
+ * killed one rat and died again never tripped the limit: a fresh citizen died
+ * ten times an hour in the Sewers and kept marching back in. Deaths inside one
+ * window are what "this place is too hard" actually means.
+ */
+export const DEATH_WINDOW_MS = 10 * 60 * 1000;
+
 /** How often you swing, in milliseconds. Two-handed weapons are slower. */
 export function playerAttackInterval() {
   const weapon = equipped('weapon');
@@ -111,6 +131,12 @@ export function restoreMana(amount) {
 export function regenTick(dt) {
   const voc = vocation();
   const t = S.timers;
+  // Countdowns that run whatever the character is doing. Combat slices call
+  // autoPotion many times per engine step, so the exhaust has to be decremented
+  // once per step, out here, rather than inside the slice loop.
+  t.potion = Math.max(0, (t.potion ?? 0) - dt);
+  t.deathWindow = Math.max(0, (t.deathWindow ?? 0) - dt);
+  if (t.deathWindow === 0) S.stats.deathStreak = 0;
   const resting = !S.combat || S.combat.respawn > 0;
   // Higher levels heal in bigger chunks, or an idle hunt can never keep up.
   const tickSize = Math.floor(S.char.level / 15);
@@ -158,29 +184,45 @@ export function autoEat() {
   return ate;
 }
 
-function weakestPotion(kind) {
-  return S.inventory
+/**
+ * The cheapest potion that actually covers `missing`, or the strongest you have
+ * when nothing does.
+ *
+ * Always reaching for the weakest one looks thrifty and is how a level 150
+ * knight died in Hellgate: it kept sipping 40 hp starter potions against 115
+ * damage a second because they were still in the backpack. Don't waste a great
+ * health potion on a scratch, but when you are losing the race, drink the big one.
+ */
+function bestPotion(kind, missing) {
+  const usable = S.inventory
     .map((e) => getItem(e.id))
     .filter((i) => i.type === 'potion' && i[kind] && S.char.level >= (i.reqLevel ?? 1))
-    .sort((a, b) => a[kind] - b[kind])[0];
+    .sort((a, b) => a[kind] - b[kind]);
+  return usable.find((i) => i[kind] >= missing) ?? usable[usable.length - 1];
 }
 
+/** One swallow per exhaust: health first, mana only if health did not need it. */
 export function autoPotion() {
-  if (!S.settings.autoPotion) return;
-  const hpRatio = ratio(S.char.hp, maxHp());
-  if (hpRatio < S.settings.potionThreshold) {
-    const potion = weakestPotion('heal');
+  if (!S.settings.autoPotion || S.timers.potion > 0) return false;
+
+  if (ratio(S.char.hp, maxHp()) < S.settings.potionThreshold) {
+    const potion = bestPotion('heal', maxHp() - S.char.hp);
     if (potion && removeItem(potion.id, 1)) {
+      S.timers.potion = POTION_EXHAUST_MS;
       const healed = heal(potion.heal);
       pushLog(`You drink ${potion.name.toLowerCase()} (+${healed} hp).`, 'good');
+      return true;
     }
   }
   if (ratio(S.char.mana, maxMp()) < 0.3 && (S.settings.attackSpell || S.settings.healSpell)) {
-    const potion = weakestPotion('mana');
+    const potion = bestPotion('mana', maxMp() - S.char.mana);
     if (potion && removeItem(potion.id, 1)) {
+      S.timers.potion = POTION_EXHAUST_MS;
       restoreMana(potion.mana);
+      return true;
     }
   }
+  return false;
 }
 
 // ---------------------------------------------------------------------- weapon

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  expForLevel, levelForExp, expProgress, maxHealth, maxMana, maxCapacity, triesToAdvance, maxHit,
+  expForLevel, levelForExp, expProgress, maxHealth, maxMana, maxCapacity, triesToAdvance, maxHit, defenceValue,
 } from '../src/core/formulas.js';
 
 test('experience curve matches Tibia', () => {
@@ -49,9 +49,17 @@ test('skill costs use the real per-vocation constants', () => {
 });
 
 test('damage scales with weapon attack, skill and stance', () => {
-  assert.equal(maxHit(10, 10, 1, 'balanced'), 17);
+  // 0.085 * 10 * 10 / 1.2 + 1/5 = 7.28. The stance is a divisor, as in the real
+  // client: when it was a multiplier this read 17, and a knight in level-
+  // appropriate gear cleared content meant for twice their level unharmed.
+  assert.equal(maxHit(10, 10, 1, 'balanced'), 7);
+  assert.equal(maxHit(10, 10, 1, 'offensive'), 8);
+  assert.equal(maxHit(10, 10, 1, 'defensive'), 4);
   assert.ok(maxHit(10, 10, 1, 'offensive') > maxHit(10, 10, 1, 'balanced'));
   assert.ok(maxHit(10, 10, 1, 'defensive') < maxHit(10, 10, 1, 'balanced'));
+  // Full Defence has to cost damage but buy real defence, or nobody picks it.
+  assert.ok(defenceValue(60, 30, 'defensive') > defenceValue(60, 30, 'balanced'));
+  assert.ok(defenceValue(60, 30, 'balanced') > defenceValue(60, 30, 'offensive'));
   // Skill matters as much as the weapon: a rapier at skill 60 beats an axe at 10.
   assert.ok(maxHit(10, 60, 50, 'balanced') > maxHit(40, 10, 50, 'balanced'));
 });

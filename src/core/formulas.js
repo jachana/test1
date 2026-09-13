@@ -63,22 +63,28 @@ export function maxCapacity(level, vocation) {
   return stat(level, vocation, BASE_CAP, ROOKIE_GAIN.cap, 'capPerLevel');
 }
 
-// Melee/distance damage, modelled on Tibia's formula:
-//   max = 0.085 * factor * weaponAttack * skill + level / 5
+// Melee/distance damage, on Tibia's formula:
+//   max = 0.085 * weaponAttack * skill / attackFactor + level / 5
+//
+// `dmg` is a DIVISOR, as it is in the real client — Full Attack is the fast
+// number and Full Defence costs you half your damage for it. Treating it as a
+// multiplier instead (balanced was 2.0) handed out 2.4x the damage Tibia does,
+// which is why a level 25 knight cleared Drefia without drinking a potion and
+// why nothing in the game could kill anyone past about level 14.
 export const ATTACK_MODES = {
-  offensive: { id: 'offensive', name: 'Full Attack', dmg: 2.5, def: 0.5 },
-  balanced: { id: 'balanced', name: 'Balanced', dmg: 2.0, def: 0.75 },
-  defensive: { id: 'defensive', name: 'Full Defence', dmg: 1.2, def: 1.0 },
+  offensive: { id: 'offensive', name: 'Full Attack', dmg: 1.0, def: 0.5 },
+  balanced: { id: 'balanced', name: 'Balanced', dmg: 1.2, def: 1.0 },
+  defensive: { id: 'defensive', name: 'Full Defence', dmg: 2.0, def: 1.5 },
 };
 
 export function maxHit(weaponAttack, skillLevel, charLevel, mode) {
-  const f = ATTACK_MODES[mode]?.dmg ?? 2.0;
-  return Math.max(1, Math.floor(0.085 * f * weaponAttack * skillLevel + charLevel / 5));
+  const f = ATTACK_MODES[mode]?.dmg ?? 1.2;
+  return Math.max(1, Math.floor((0.085 * weaponAttack * skillLevel) / f + charLevel / 5));
 }
 
 // Defence value: shielding skill scaled by stance plus the shield's own block.
 export function defenceValue(shieldingLevel, shieldDefence, mode) {
-  const f = ATTACK_MODES[mode]?.def ?? 0.75;
+  const f = ATTACK_MODES[mode]?.def ?? 1.0;
   return (shieldingLevel * 0.4 + shieldDefence) * f;
 }
 

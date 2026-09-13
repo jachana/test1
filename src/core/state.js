@@ -57,7 +57,7 @@ export function createState(name, vocation = 'none') {
     gold: 100,
     action: null,
     combat: null,
-    timers: { hpRegen: 0, manaRegen: 0, food: 0 },
+    timers: { hpRegen: 0, manaRegen: 0, food: 0, potion: 0, deathWindow: 0 },
     settings: {
       attackMode: 'balanced',
       autoEat: true,

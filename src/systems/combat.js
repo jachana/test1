@@ -1,5 +1,5 @@
 import { S, pushLog } from '../core/state.js';
-import { getArea } from '../data/areas.js';
+import { getArea, expMult, goldMult } from '../data/areas.js';
 import { getMonster } from '../data/monsters.js';
 import { SPELLS } from '../data/spells.js';
 import { getItem, slotOf } from '../data/items.js';
@@ -11,15 +11,34 @@ import { emit } from '../core/bus.js';
 import { addGold, addItem, count, removeItem, totalArmour, shieldDefence } from './inventory.js';
 import {
   autoEat, autoPotion, death, gainExp, gainSkill, heal, maxHp, maxMp,
-  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile,
+  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile, DEATH_WINDOW_MS,
 } from './player.js';
 import { VOCATION_LEVEL } from '../data/vocations.js';
 import { questGateFor } from '../data/quests.js';
 import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
 
-/** Dying this many times without a kill in between means the area is too hard. */
+/** Dying this many times inside one DEATH_WINDOW_MS means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
+
+/** Below this share of health, an empty potion pouch is a reason to leave. */
+const RETREAT_HP = 0.45;
+
+/**
+ * True when the character is hurt, relies on potions, and has none left.
+ *
+ * Only counts potions this character is allowed to drink: a level 90 knight
+ * carrying nothing but the level 20 stack is out of supplies for the purposes
+ * of anywhere that can actually hurt them.
+ */
+function outOfSupplies() {
+  if (!S.settings.autoPotion) return false;
+  if (S.char.hp > maxHp() * RETREAT_HP) return false;
+  return !S.inventory.some((e) => {
+    const item = getItem(e.id);
+    return item.type === 'potion' && item.heal && S.char.level >= (item.reqLevel ?? 1);
+  });
+}
 
 /** Why you cannot travel here yet, or null when the road is open. */
 export function travelProblem(area) {
@@ -125,10 +144,11 @@ function monsterAttack(monster) {
   const areaId = S.action?.areaId;
   death(); // clears the current action and sends you to the temple
   S.stats.deathStreak = (S.stats.deathStreak ?? 0) + 1;
+  S.timers.deathWindow = DEATH_WINDOW_MS; // regenTick clears the streak when it runs out
   if (S.settings.autoReturn && areaId && S.stats.deathStreak < DEATH_STREAK_LIMIT) {
     startHunt(areaId);
   } else if (areaId) {
-    pushLog('You stay in the temple rather than walk back into that.', 'bad');
+    pushLog(`You have died ${S.stats.deathStreak} times in ten minutes. You stay in the temple rather than walk back into that.`, 'bad');
   }
   return true;
 }
@@ -170,8 +190,8 @@ function castSpells(dt) {
   emit('combat:spell', { spell, amount: damage, kind: 'attack' });
 }
 
-function grantLoot(monster) {
-  const gold = randInt(monster.gold[0], monster.gold[1]);
+function grantLoot(monster, area) {
+  const gold = Math.round(randInt(monster.gold[0], monster.gold[1]) * goldMult(area));
   if (gold > 0) addGold(gold);
 
   const gained = [];
@@ -194,16 +214,16 @@ function grantLoot(monster) {
   return { gold, gained };
 }
 
-function killMonster(monster) {
-  gainExp(monster.exp);
+function killMonster(monster, area) {
+  const exp = Math.round(monster.exp * expMult(area));
+  gainExp(exp);
   S.stats.kills[monster.id] = (S.stats.kills[monster.id] ?? 0) + 1;
-  S.stats.deathStreak = 0;
-  const { gold, gained } = grantLoot(monster);
+  const { gold, gained } = grantLoot(monster, area);
   const parts = [];
   if (gold) parts.push(`${gold} gold`);
   parts.push(...gained);
   pushLog(
-    `You killed a ${monster.name.toLowerCase()} (+${monster.exp} exp)${parts.length ? `. Loot: ${parts.join(', ')}` : '.'}`,
+    `You killed a ${monster.name.toLowerCase()} (+${exp} exp)${parts.length ? `. Loot: ${parts.join(', ')}` : '.'}`,
     'kill',
   );
   S.combat.hp = 0;
@@ -236,11 +256,18 @@ function stepCombat(area, dt) {
   }
 
   const monster = getMonster(c.monsterId);
+  // Walking home broke is better than dying three times because the backpack
+  // quietly ran dry — which is exactly how a level 150 knight lost a night in
+  // Hellgate: autoPotion failed silently every 100ms until the next blow landed.
+  if (outOfSupplies()) {
+    stopAction('You are out of potions. You head back to town before something kills you.');
+    return;
+  }
   autoPotion();
   autoEat();
   castSpells(dt);
   if (c.hp <= 0) {
-    killMonster(monster);
+    killMonster(monster, area);
     return;
   }
 
@@ -251,7 +278,7 @@ function stepCombat(area, dt) {
     if (!S.combat) return; // stopped mid-swing (out of ammunition)
   }
   if (c.hp <= 0) {
-    killMonster(monster);
+    killMonster(monster, area);
     return;
   }
 
