@@ -151,7 +151,7 @@ function castSpells(dt) {
     const missing = maxHp() - S.char.hp;
     if (missing > 0 && S.char.hp / maxHp() < 0.7 && S.char.mana >= spell.mana) {
       if (spendMana(spell.mana)) {
-        const amount = spellHit(spell.base, spell.perML, S.skills.magic.level, S.char.level);
+        const amount = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
         heal(amount);
         emit('combat:spell', { spell, amount, kind: 'heal' });
         return;
@@ -166,7 +166,7 @@ function castSpells(dt) {
   c.spellTimer = 0;
 
   const profile = weaponProfile();
-  let damage = spellHit(spell.base, spell.perML, S.skills.magic.level, S.char.level);
+  let damage = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
   if (spell.weaponScale) damage += Math.floor(profile.attack * skillLevel(profile.skill) * 0.02 * spell.weaponScale);
   if (!spendMana(spell.mana)) return;
 
@@ -218,17 +218,23 @@ function killMonster(monster) {
   emit('combat:kill', monster);
 }
 
-export function tickCombat(dt) {
-  const area = getArea(S.action.areaId);
-  if (!area) {
-    stopAction();
-    return;
-  }
-  if (!S.combat) {
-    spawn(area);
-    return;
-  }
+/**
+ * How long until the next thing happens: a swing, a blow, or a respawn ending.
+ * Slicing on these boundaries is what makes a 1-second offline step pay out
+ * exactly what ten 100ms live ticks would.
+ */
+function nextEventIn() {
+  const c = S.combat;
+  if (c.respawn > 0) return c.respawn;
+  const monster = getMonster(c.monsterId);
+  return Math.max(1, Math.min(
+    playerAttackInterval() - c.playerTimer,
+    monster.speed - c.monsterTimer,
+  ));
+}
 
+/** One slice of combat, never longer than the time to the next event. */
+function stepCombat(area, dt) {
   const c = S.combat;
   if (c.respawn > 0) {
     c.respawn -= dt;
@@ -237,7 +243,6 @@ export function tickCombat(dt) {
   }
 
   const monster = getMonster(c.monsterId);
-
   autoPotion();
   autoEat();
   castSpells(dt);
@@ -247,11 +252,10 @@ export function tickCombat(dt) {
   }
 
   c.playerTimer += dt;
-  const interval = playerAttackInterval();
-  while (c.playerTimer >= interval && c.hp > 0) {
-    c.playerTimer -= interval;
+  if (c.playerTimer >= playerAttackInterval()) {
+    c.playerTimer -= playerAttackInterval();
     playerAttack(monster);
-    if (!S.combat) return; // stopped mid-swing (out of ammo)
+    if (!S.combat) return; // stopped mid-swing (out of ammunition)
   }
   if (c.hp <= 0) {
     killMonster(monster);
@@ -259,9 +263,26 @@ export function tickCombat(dt) {
   }
 
   c.monsterTimer += dt;
-  while (c.monsterTimer >= monster.speed) {
+  if (c.monsterTimer >= monster.speed) {
     c.monsterTimer -= monster.speed;
-    if (monsterAttack(monster)) return; // we died; `c` is stale now
+    monsterAttack(monster); // may have killed us; the loop below re-checks state
+  }
+}
+
+export function tickCombat(dt) {
+  let remaining = dt;
+  let guard = 0;
+  while (remaining > 0.5 && guard++ < 10_000) {
+    if (S.action?.type !== 'combat') return; // died, or stopped
+    const area = getArea(S.action.areaId);
+    if (!area) {
+      stopAction();
+      return;
+    }
+    if (!S.combat) spawn(area);
+    const slice = Math.min(remaining, nextEventIn());
+    stepCombat(area, slice);
+    remaining -= slice;
   }
 }
 

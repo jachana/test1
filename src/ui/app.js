@@ -149,9 +149,10 @@ function buildLog() {
     ])));
   };
   shellUpdates.push(() => {
-    const sig = S.log.length * 1000 + (S.log[0]?.count ?? 0);
-    if (sig !== lastCount) {
-      lastCount = sig;
+    // pushLog bumps logSeq on every write. Deriving the key from length instead
+    // froze the log at MAX_LOG, where length stops changing.
+    if (S.logSeq !== lastCount) {
+      lastCount = S.logSeq;
       render();
     }
   });

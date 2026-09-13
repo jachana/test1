@@ -78,6 +78,30 @@ for (const shop of SHOPS) {
 }
 for (const id of SPRITE_IDS) item(id, 'sprite mapping');
 
+// A skillBonus naming a skill that no longer exists is silently inert — which is
+// exactly how the dwarven ring ended up granting +5 to a deleted mining skill.
+for (const it of Object.values(ITEMS)) {
+  for (const key of Object.keys(it.skillBonus ?? {})) {
+    if (key !== 'all' && !SKILLS[key]) problems.push(`item ${it.id}: skillBonus for unknown skill "${key}"`);
+  }
+}
+
+// Warn about content nobody can reach: an item in no loot table, shop, quest or
+// action output exists in the game and can never be found in it.
+const reachable = new Set();
+for (const m of Object.values(MONSTERS)) for (const d of m.loot) reachable.add(d.item);
+for (const q of QUESTS) {
+  for (const [id] of q.rewards ?? []) reachable.add(id);
+  for (const id of q.choice ?? []) reachable.add(id);
+}
+for (const shop of SHOPS) for (const id of shop.stock) reachable.add(id);
+for (const action of Object.values(ACTIONS).flat()) {
+  for (const o of action.out) reachable.add(o.item);
+  for (const i of action.inputs ?? []) reachable.add(i.item);
+}
+const unobtainable = Object.keys(ITEMS).filter((id) => !reachable.has(id) && id !== 'gold_coin');
+if (unobtainable.length) console.warn(`note: items nothing grants: ${unobtainable.join(', ')}`);
+
 // Warn about content nobody can reach.
 const spawned = new Set(AREAS.flatMap((a) => a.spawns.map(([id]) => id)));
 const orphans = Object.keys(MONSTERS).filter((id) => !spawned.has(id));

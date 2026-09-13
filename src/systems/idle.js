@@ -20,7 +20,7 @@ export function requirementProblem(skillId, action) {
   if (action.mana && S.char.vocation === 'none') {
     return 'Rune making requires a vocation — reach level 8 and choose one.';
   }
-  if (action.reqMagic && S.skills.magic.level < action.reqMagic) {
+  if (action.reqMagic && skillLevel('magic') < action.reqMagic) {
     return `Requires magic level ${action.reqMagic}.`;
   }
   if (action.inputs && !hasInputs(action.inputs)) {

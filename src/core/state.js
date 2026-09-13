@@ -6,7 +6,7 @@ import { AREAS } from '../data/areas.js';
 import { QUESTS } from '../data/quests.js';
 import { SPELLS } from '../data/spells.js';
 import { getAction } from '../data/actions.js';
-import { maxHealth, maxMana } from './formulas.js';
+import { levelForExp, maxHealth, maxMana } from './formulas.js';
 import { emit } from './bus.js';
 
 export const SAVE_KEY = 'tibia-idle:save:v1';
@@ -71,6 +71,7 @@ export function createState(name, vocation = 'none') {
       autoReturn: true,
     },
     quests: { done: [], choice: {} },
+    logSeq: 0, // monotonic: the log's signature for the UI
     stats: { kills: {}, deaths: 0, deathStreak: 0, goldEarned: 0, expEarned: 0, playtimeMs: 0, actionsDone: 0, itemsGathered: 0 },
     log: [],
   };
@@ -100,27 +101,34 @@ export function hasSave() {
   }
 }
 
+export const SAVED_LOG_ENTRIES = 25;
+
 export function save() {
   if (!S) return;
   S.lastTick = Date.now();
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+    // The log is ~84% of the payload and is pure scrollback; keep a short tail.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...S, log: S.log.slice(0, SAVED_LOG_ENTRIES) }));
   } catch (err) {
     console.warn('could not save', err);
   }
 }
 
+/**
+ * Loads the save. Throws if one exists but cannot be migrated — the caller shows
+ * the recovery screen. Returning null here instead would drop the player into
+ * character creation, whose first save overwrites the very save they need back.
+ */
 export function load() {
+  let raw = null;
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const parsed = migrate(JSON.parse(raw));
-    setState(parsed);
-    return S;
-  } catch (err) {
-    console.error('save is corrupt, ignoring', err);
-    return null;
+    raw = localStorage.getItem(SAVE_KEY);
+  } catch {
+    return null; // storage unavailable; start fresh rather than fail
   }
+  if (!raw) return null;
+  setState(migrate(JSON.parse(raw)));
+  return S;
 }
 
 export function wipe() {
@@ -200,12 +208,20 @@ function sanitise(state) {
     if (!MONSTERS[id]) delete state.stats.kills[id];
   }
 
+  // Experience is the source of truth; a level that disagrees with it would
+  // otherwise stick forever, since gainExp only ever raises the level.
+  state.char.exp = Math.max(0, state.char.exp || 0);
+  state.char.level = levelForExp(state.char.exp);
+
   const maxHp = maxHealth(state.char.level, state.char.vocation);
   const maxMp = maxMana(state.char.level, state.char.vocation);
   state.char.hp = Math.min(Math.max(1, state.char.hp || maxHp), maxHp);
   state.char.mana = Math.min(Math.max(0, state.char.mana || 0), maxMp);
   return state;
 }
+
+/** Exposed for tests: migration is where save compatibility actually lives. */
+export const migrateForTest = (raw) => migrate(raw);
 
 export function exportSave() {
   return btoa(encodeURIComponent(JSON.stringify(S)));
@@ -229,5 +245,6 @@ export function pushLog(text, kind = 'info') {
     S.log.unshift({ text, kind, at: Date.now(), count: 1 });
     if (S.log.length > MAX_LOG) S.log.length = MAX_LOG;
   }
+  S.logSeq = (S.logSeq ?? 0) + 1;
   emit('log', S.log[0]);
 }

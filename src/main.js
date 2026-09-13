@@ -1,4 +1,4 @@
-import { hasSave, load, save, wipe, exportSave, S } from './core/state.js';
+import { hasSave, load, save, wipe, exportSave, SAVE_KEY, S } from './core/state.js';
 import { simulateOffline, startEngine } from './core/engine.js';
 import { maxHealth, maxMana } from './core/formulas.js';
 import { mountShell, offlineModal, rerender } from './ui/app.js';
@@ -30,7 +30,7 @@ function showRecovery(error) {
   console.error('could not start the game', error);
   let backup = '';
   try {
-    backup = localStorage.getItem('tibia-idle:save:v1') ?? '';
+    backup = localStorage.getItem(SAVE_KEY) ?? '';
   } catch { /* storage unavailable; nothing to rescue */ }
 
   const box = el('textarea', { class: 'input mono', rows: '4', hidden: true });

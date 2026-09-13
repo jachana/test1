@@ -30,7 +30,7 @@ export function gainExp(amount) {
   const before = S.char.level;
   S.char.exp += amount;
   S.stats.expEarned += amount;
-  const after = levelForExp(S.char.exp);
+  const after = levelForExp(S.char.exp, before);
   if (after > before) {
     S.char.level = after;
     S.char.hp = maxHp();
@@ -63,6 +63,7 @@ export function loseExpOnDeath(fraction = 0.1) {
   const lost = Math.floor(S.char.exp * fraction);
   S.char.exp = Math.max(0, S.char.exp - lost);
   S.char.level = levelForExp(S.char.exp);
+
   return { lost, demoted: S.char.exp < floorExp };
 }
 

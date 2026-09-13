@@ -7,14 +7,21 @@ export function expForLevel(level) {
   return Math.round((50 / 3) * (level ** 3 - 6 * level ** 2 + 17 * level - 12));
 }
 
-export function levelForExp(exp) {
-  let level = 1;
+/**
+ * `from` is a hint, not a floor: pass the level you already believe the
+ * character has and the scan starts there instead of walking up from 1, which
+ * matters because this runs on every experience gain and on every UI tick.
+ */
+export function levelForExp(exp, from = 1) {
+  let level = Math.max(1, Math.min(from, 1 + Math.cbrt(Math.max(0, exp) * 3 / 50)));
+  level = Math.floor(level);
+  while (level > 1 && expForLevel(level) > exp) level--;
   while (expForLevel(level + 1) <= exp) level++;
   return level;
 }
 
-export function expProgress(exp) {
-  const level = levelForExp(exp);
+export function expProgress(exp, from = 1) {
+  const level = levelForExp(exp, from);
   const floor = expForLevel(level);
   const next = expForLevel(level + 1);
   return { level, floor, next, into: exp - floor, need: next - floor, ratio: (exp - floor) / (next - floor) };
@@ -29,7 +36,10 @@ export function skillFactor(skillId, vocation) {
 export function triesToAdvance(skillId, level, vocation) {
   const skill = SKILLS[skillId];
   if (level >= MAX_SKILL_LEVEL) return Infinity;
-  return Math.ceil(skill.base * skillFactor(skillId, vocation) ** (level - skill.offset));
+  // Round before the ceiling: 50 * 1.1 lands on 55.000000000000007 in binary
+  // floating point, which would quietly make a knight's sword 10->11 cost 56.
+  const cost = skill.base * skillFactor(skillId, vocation) ** (level - skill.offset);
+  return Math.ceil(Number(cost.toFixed(6)));
 }
 
 // Levels 2-8 are vocationless rookie levels; the vocation only pays out from

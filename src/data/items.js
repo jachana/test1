@@ -103,7 +103,7 @@ export const ITEMS = Object.fromEntries([
   { id: 'life_ring', name: 'Life Ring', icon: '💚', type: 'armour', slot: 'ring', arm: 0, wt: 20, value: 900, regenBonus: 1 },
   { id: 'power_ring', name: 'Power Ring', icon: '💪', type: 'armour', slot: 'ring', arm: 0, wt: 20, value: 100, skillBonus: { all: 3 } },
   { id: 'ring_of_healing', name: 'Ring of Healing', icon: '💞', type: 'armour', slot: 'ring', arm: 0, wt: 20, value: 1000, regenBonus: 2 },
-  { id: 'dwarven_ring', name: 'Dwarven Ring', icon: '💍', type: 'armour', slot: 'ring', arm: 0, wt: 20, value: 2000, skillBonus: { mining: 5 } },
+  { id: 'dwarven_ring', name: 'Dwarven Ring', icon: '💍', type: 'armour', slot: 'ring', arm: 0, wt: 20, value: 2000, skillBonus: { shielding: 4 } },
 
   // ----------------------------------------------------------------- potions
   { id: 'health_potion', name: 'Health Potion', icon: '🧪', type: 'potion', heal: 75, wt: 27, value: 45, buy: 50 },

@@ -25,7 +25,7 @@ function outgoingDps(monster) {
 
   const spell = SPELLS[S.settings.attackSpell];
   if (spell) {
-    const hit = spellHit(spell.base, spell.perML, S.skills.magic.level, S.char.level);
+    const hit = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
     const soaked = Math.max(1, hit - monster.arm * 0.5 * AVG_SOAK);
     // Only counts while you can pay for it; mana regen sets the real ceiling.
     const manaPerSecond = (vocation().manaRegen.amount + Math.floor(S.char.level / 15)) / vocation().manaRegen.seconds;
