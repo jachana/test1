@@ -68,13 +68,13 @@ export const AREAS = [
   },
   {
     id: 'drefia', name: 'Drefia', icon: '🕯️', req: 60,
-    expMult: 1.1, goldMult: 0.9,
+    expMult: 1.25, goldMult: 0.9,
     blurb: 'The necromancer city under Darashia. Vampires, liches and worse.',
     spawns: [['vampire', 4], ['necromancer', 3], ['banshee', 2], ['lich', 1]],
   },
   {
     id: 'dragon_lair', name: 'Edron Dragon Lair', icon: '🐉', req: 70,
-    expMult: 1.25, goldMult: 1.35,
+    expMult: 1.35, goldMult: 1.35,
     blurb: 'Scales, fire and a pile of gold. The classic grind.',
     spawns: [['dragon', 5], ['wyvern', 3], ['giant_spider', 2], ['dragon_lord', 1]],
   },
@@ -92,6 +92,17 @@ export const AREAS = [
     // best-geared level 150 knight every single time, whatever the dice did.
     // A pit you meet one demon in is still the hardest place in the game.
     spawns: [['warlock', 4], ['dragon_lord', 3], ['black_knight', 3], ['behemoth', 2], ['demon', 1]],
+  },
+  {
+    id: 'ferumbras_citadel', name: "Ferumbras' Citadel", icon: '🏯', req: 140,
+    expMult: 0.85, goldMult: 1.0,
+    blurb: 'He came back. He always comes back. Bring everything you own.',
+    // Three named bosses and nothing else. The one place in the game where the
+    // quest that "finishes" a boss is the thing that lets you fight it again:
+    // Ferumbras' Tower kills him once, the citadel is where he keeps returning.
+    // Deliberately the slowest experience per hour in the endgame and by far
+    // the best loot — you come here for what drops, not for the levels.
+    spawns: [['orshabaal', 3], ['ghazbaran', 2], ['ferumbras', 1]],
   },
 ];
 

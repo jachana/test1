@@ -1,5 +1,5 @@
 import { S } from '../core/state.js';
-import { getMonster } from '../data/monsters.js';
+import { getMonster, asChampion, CHAMPION, CHAMPION_CHANCE } from '../data/monsters.js';
 import { expMult, goldMult } from '../data/areas.js';
 import { getItem, ITEMS } from '../data/items.js';
 import { SPELLS } from '../data/spells.js';
@@ -9,6 +9,7 @@ import {
   RESPAWN_MS, RESTING_SPEEDUP,
 } from '../core/formulas.js';
 import { totalArmour, shieldDefence } from './inventory.js';
+import { bestiaryExpBonus, bestiaryLootBonus } from './bestiary.js';
 import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile, castValue } from './player.js';
 
 const RESPAWN_S = RESPAWN_MS / 1000;
@@ -68,12 +69,13 @@ const WORTH_CARRYING = 15;
 /** Average gold from one kill: coins, plus the loot that earns its weight. */
 function killValue(monster, area) {
   const gold = ((monster.gold[0] + monster.gold[1]) / 2) * goldMult(area);
+  const rolls = (monster.champion ? CHAMPION.lootRolls : 1) * bestiaryLootBonus(monster.id);
   const loot = monster.loot.reduce((sum, d) => {
     const item = getItem(d.item);
     const value = sellPrice(d.item);
     const perOunce = item.wt > 0 ? (value * 10) / item.wt : Infinity;
     const carried = Math.min(1, perOunce / WORTH_CARRYING);
-    return sum + d.chance * ((d.lo + d.hi) / 2) * value * carried;
+    return sum + Math.min(1, d.chance * rolls) * ((d.lo + d.hi) / 2) * value * carried;
   }, 0);
   return gold + loot;
 }
@@ -96,8 +98,15 @@ function blowsBefore(swings, intervalMs, speedMs) {
   return at(lo) * (1 - frac) + at(lo + 1) * frac;
 }
 
-export function monsterEstimate(monsterId, area = null) {
-  const monster = getMonster(monsterId);
+/**
+ * The estimate for one exact creature — normal or champion, no blending.
+ *
+ * monsterEstimate wraps this to average the two, because a spawn is a coin
+ * flip weighted at one in forty and a champion is 2.6x the health for 3x the
+ * experience. Leaving champions out understated damage taken by enough to fail
+ * the ground-truth test the moment they were added.
+ */
+function estimateOne(monster, area) {
   const dps = outgoingDps(monster);
   const intervalMs = playerAttackInterval();
 
@@ -116,10 +125,32 @@ export function monsterEstimate(monsterId, area = null) {
   return {
     monster,
     ttk,
-    expPerHour: (3600 / cycle) * monster.exp * expMult(area),
+    cycle,
+    expPerHour: (3600 / cycle) * monster.exp * expMult(area) * bestiaryExpBonus(monster.id),
     goldPerHour: (3600 / cycle) * killValue(monster, area),
     incoming: damagePerKill / cycle,
     damagePerKill,
+  };
+}
+
+export function monsterEstimate(monsterId, area = null) {
+  const base = getMonster(monsterId);
+  const normal = estimateOne(base, area);
+  const champion = estimateOne(asChampion(base), area);
+
+  // Rates are per hour, so they blend on time spent rather than on spawn count:
+  // one champion in forty spawns is more than one fortieth of the clock.
+  const p = CHAMPION_CHANCE;
+  const timeShare = (p * champion.cycle) / (p * champion.cycle + (1 - p) * normal.cycle);
+  const mix = (key) => normal[key] * (1 - timeShare) + champion[key] * timeShare;
+
+  return {
+    monster: base,
+    ttk: normal.ttk * (1 - p) + champion.ttk * p,
+    expPerHour: mix('expPerHour'),
+    goldPerHour: mix('goldPerHour'),
+    incoming: mix('incoming'),
+    damagePerKill: normal.damagePerKill * (1 - p) + champion.damagePerKill * p,
   };
 }
 
@@ -212,6 +243,32 @@ export function notableDrops(area, limit = 6) {
   return [...seen.values()]
     .sort((a, b) => b.item.value * b.chance - a.item.value * a.chance)
     .slice(0, limit);
+}
+
+/**
+ * The items this area is the best place in the game to get.
+ *
+ * Experience and gold per hour are not the only reasons to walk somewhere. The
+ * citadel is the slowest experience in the endgame and it is where the three
+ * best pieces of armour in the game actually come from, at ten times the rate
+ * anywhere else has them. An area whose drop table nothing else matches is not
+ * dead content, whatever the columns say.
+ */
+export function exclusiveDrops(area, allAreas, minValue = 3000) {
+  const rateIn = (a, itemId) => Math.max(0, ...a.spawns.map(([id, weight]) => {
+    const share = weight / a.spawns.reduce((sum, [, w]) => sum + w, 0);
+    const drop = getMonster(id).loot.find((d) => d.item === itemId);
+    return drop ? drop.chance * share : 0;
+  }));
+
+  const here = new Set();
+  for (const [id] of area.spawns) for (const d of getMonster(id).loot) here.add(d.item);
+
+  return [...here]
+    .filter((itemId) => getItem(itemId).value >= minValue)
+    .map((itemId) => ({ item: getItem(itemId), rate: rateIn(area, itemId) }))
+    .filter(({ item, rate }) => allAreas.every((a) => a === area || rateIn(a, item.id) < rate))
+    .sort((a, b) => b.item.value * b.rate - a.item.value * a.rate);
 }
 
 /** Areas ranked by experience for the character as it stands. */

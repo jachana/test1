@@ -242,6 +242,30 @@ export const EQUIP_SLOTS = [
   { id: 'ammo', name: 'Ammo', icon: '➡️' },
 ];
 
+/**
+ * Rarity, derived from value rather than authored.
+ *
+ * Tibia never labelled items, but sixty identical grey squares is a wall to
+ * scan rather than a backpack to read. The thresholds fall where the real
+ * equipment tiers already sit: 88 common, 39 Fine, 26 Rare, 17 Epic (magic
+ * plate armour, a demon shield, boots of haste) and exactly three Legendary —
+ * demon armor, golden legs and a dragon scale mail.
+ */
+export const RARITIES = [
+  { id: 'common', name: 'Common', at: 0 },
+  { id: 'fine', name: 'Fine', at: 400 },
+  { id: 'rare', name: 'Rare', at: 3000 },
+  { id: 'epic', name: 'Epic', at: 20000 },
+  { id: 'legend', name: 'Legendary', at: 100000 },
+];
+
+export function rarityOf(item) {
+  const value = item?.value ?? 0;
+  let rarity = RARITIES[0];
+  for (const r of RARITIES) if (value >= r.at) rarity = r;
+  return rarity;
+}
+
 export function slotOf(item) {
   if (item.type === 'ammo') return 'ammo';
   return item.slot ?? null;

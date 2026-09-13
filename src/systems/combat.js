@@ -1,6 +1,6 @@
 import { S, pushLog } from '../core/state.js';
 import { getArea, expMult, goldMult } from '../data/areas.js';
-import { getMonster } from '../data/monsters.js';
+import { getMonster, asChampion, CHAMPION, CHAMPION_CHANCE } from '../data/monsters.js';
 import { SPELLS } from '../data/spells.js';
 import { getItem, slotOf } from '../data/items.js';
 import {
@@ -17,9 +17,16 @@ import { VOCATION_LEVEL } from '../data/vocations.js';
 import { questGateFor } from '../data/quests.js';
 import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
+import { bestiaryExpBonus, bestiaryLootBonus } from './bestiary.js';
 
 /** A drop this unlikely is worth interrupting the player for. */
 const RARE_DROP = 0.02;
+
+/** The creature as it is actually being fought, champion scaling included. */
+export function activeMonster() {
+  const base = getMonster(S.combat.monsterId);
+  return S.combat.champion ? asChampion(base) : base;
+}
 
 /** Dying this many times inside one DEATH_WINDOW_MS means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
@@ -81,11 +88,13 @@ export function stopAction(reason) {
 
 function spawn(area) {
   const pick = pickWeighted(area.spawns.map(([id, weight]) => ({ id, weight })));
-  const monster = getMonster(pick.id);
+  const champion = roll(CHAMPION_CHANCE);
+  const hp = Math.round(getMonster(pick.id).hp * (champion ? CHAMPION.hp : 1));
   S.combat = {
-    monsterId: monster.id,
-    hp: monster.hp,
-    maxHp: monster.hp,
+    monsterId: pick.id,
+    champion,
+    hp,
+    maxHp: hp,
     playerTimer: 0,
     monsterTimer: 0,
     spellTimer: 0,
@@ -93,6 +102,8 @@ function spawn(area) {
     lastPlayerHit: null,
     lastMonsterHit: null,
   };
+  const monster = activeMonster();
+  if (champion) pushLog(`A ${monster.name.toLowerCase()} appears — bigger, meaner, worth three of the usual.`, 'level');
   emit('combat:spawn', monster);
 }
 
@@ -188,7 +199,7 @@ function castSpells(dt) {
   if (spell.weaponScale) damage += Math.floor(profile.attack * skillLevel(profile.skill) * 0.02 * spell.weaponScale);
   if (!spendMana(spell.mana)) return;
 
-  const monster = getMonster(c.monsterId);
+  const monster = activeMonster();
   damage = applyArmour(damage, Math.floor(monster.arm * 0.5), 1);
   c.hp -= damage;
   c.lastPlayerHit = { amount: damage, spell: spell.name };
@@ -200,8 +211,11 @@ function grantLoot(monster, area) {
   if (gold > 0) addGold(gold);
 
   const gained = [];
-  for (const drop of monster.loot) {
-    if (!roll(drop.chance)) continue;
+  // A champion is rolled against its own loot table twice.
+  const rolls = monster.champion ? CHAMPION.lootRolls : 1;
+  const lootBonus = bestiaryLootBonus(monster.id);
+  for (let i = 0; i < rolls; i++) for (const drop of monster.loot) {
+    if (!roll(Math.min(1, drop.chance * lootBonus))) continue;
     const qty = randInt(drop.lo, drop.hi);
     const item = getItem(drop.item);
     if (S.settings.autoSell && item.value < S.settings.lootFilterValue) {
@@ -223,7 +237,10 @@ function grantLoot(monster, area) {
 }
 
 function killMonster(monster, area) {
-  const exp = Math.round(monster.exp * expMult(area));
+  // Kill tiers pay off here: a creature you have hunted five hundred times
+  // gives more experience and drops more, which is what makes a place you know
+  // well stay worth going back to.
+  const exp = Math.round(monster.exp * expMult(area) * bestiaryExpBonus(monster.id));
   gainExp(exp);
   S.stats.kills[monster.id] = (S.stats.kills[monster.id] ?? 0) + 1;
   const { gold, gained } = grantLoot(monster, area);
@@ -247,7 +264,7 @@ function killMonster(monster, area) {
 function nextEventIn() {
   const c = S.combat;
   if (c.respawn > 0) return c.respawn;
-  const monster = getMonster(c.monsterId);
+  const monster = getMonster(c.monsterId); // speed is not scaled for champions
   return Math.max(1, Math.min(
     playerAttackInterval() - c.playerTimer,
     monster.speed - c.monsterTimer,
@@ -263,7 +280,7 @@ function stepCombat(area, dt) {
     return;
   }
 
-  const monster = getMonster(c.monsterId);
+  const monster = activeMonster();
   // Walking home broke is better than dying three times because the backpack
   // quietly ran dry — which is exactly how a level 150 knight lost a night in
   // Hellgate: autoPotion failed silently every 100ms until the next blow landed.

@@ -17,6 +17,7 @@ import { inventoryView_ } from './views/inventory.js';
 import { shopView } from './views/shop.js';
 import { settingsView } from './views/settings.js';
 import { questsView } from './views/quests.js';
+import { bestiaryView } from './views/bestiary.js';
 import { getQuest } from '../data/quests.js';
 import { vocationModal } from './views/vocation.js';
 import { canChooseVocation, VOCATIONS } from '../data/vocations.js';
@@ -26,6 +27,7 @@ const NAV = [
   { route: 'character', label: 'Character', icon: '🧝' },
   { route: 'combat', label: 'Hunt', icon: '⚔️' },
   { route: 'quests', label: 'Quests', icon: '📜' },
+  { route: 'bestiary', label: 'Bestiary', icon: '📖' },
   { route: 'inventory', label: 'Backpack', icon: '🎒' },
   { route: 'shop', label: 'Traders', icon: '🏪' },
   { group: 'Skills' },
@@ -48,6 +50,7 @@ function buildView(ctx) {
     case 'shop': return shopView(ctx);
     case 'settings': return settingsView(ctx);
     case 'quests': return questsView(ctx);
+    case 'bestiary': return bestiaryView(ctx);
     case 'combat':
     default: return combatView(ctx);
   }

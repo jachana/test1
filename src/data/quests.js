@@ -119,7 +119,8 @@ export const QUESTS = [
   {
     id: 'ferumbras_tower', name: "Ferumbras' Tower", icon: '🧙‍♂️', town: 'Edron', req: 120,
     ms: 900_000, dps: 300, exp: 527000, gold: 184000, needs: ['annihilator'],
-    blurb: 'The old man himself. Nothing after this is harder.',
+    blurb: 'The old man himself. Nothing after this is harder — but he does come back.',
+    unlocks: 'ferumbras_citadel',
     rewards: [['magic_plate_armor', 1], ['ravagers_axe', 1], ['royal_crossbow', 1], ['small_diamond', 10]],
   },
 ];

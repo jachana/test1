@@ -242,6 +242,10 @@ a { color: var(--yellow); }
 .fighter { position: relative; display: flex; flex-direction: column; gap: 4px; text-align: center; }
 .fighter-title, .monster-name { font-family: var(--display); color: var(--bright); font-size: 13px; }
 .monster-icon { font-size: 42px; line-height: 1.1; }
+/* A champion is the same creature wearing a crown of light. */
+.monster-icon.champion { filter: drop-shadow(0 0 10px #ffd76e) saturate(1.3); animation: champion-bob 1.6s ease-in-out infinite; }
+.monster-name.champion { color: var(--yellow); text-shadow: 0 0 8px #ffd76e66; }
+@keyframes champion-bob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
 .versus { font-size: 18px; color: var(--muted); }
 /* Damage numbers rise off the fighter they landed on and fade. Each blow gets
    its own element, removed on animationend — the old single node just had its
@@ -367,6 +371,22 @@ a { color: var(--yellow); }
 }
 .item-tile:hover { background: #262219; }
 .item-tile.selected { border-color: var(--yellow); background: #2a2416; }
+
+/* Rarity, read off what a thing is worth. Sixty tiles of identical grey squares
+   is a wall to scan; a coloured corner is one you glance at. */
+.item-tile.rarity-fine    { box-shadow: inset 0 0 0 1px #4f7fa8; }
+.item-tile.rarity-rare    { box-shadow: inset 0 0 0 1px #6a5fb0; }
+.item-tile.rarity-epic    { box-shadow: inset 0 0 0 1px #9a6ab0; }
+.item-tile.rarity-legend  { box-shadow: inset 0 0 0 1px #d9b45a, 0 0 8px #d9b45a44; }
+.item-tile.rarity-fine    { background: linear-gradient(160deg, #1c2530, var(--inset) 60%); }
+.item-tile.rarity-rare    { background: linear-gradient(160deg, #221f33, var(--inset) 60%); }
+.item-tile.rarity-epic    { background: linear-gradient(160deg, #2a1f33, var(--inset) 60%); }
+.item-tile.rarity-legend  { background: linear-gradient(160deg, #33290f, var(--inset) 60%); }
+.detail-name.rarity-fine   { color: #7fb0d8; }
+.detail-name.rarity-rare   { color: #9a8fe0; }
+.detail-name.rarity-epic   { color: #c99ae0; }
+.detail-name.rarity-legend { color: var(--yellow); text-shadow: 0 0 8px #d9b45a55; }
+.cost.rare { color: var(--yellow); border-color: #6b5a2e; }
 .item-icon { font-size: 21px; position: relative; display: block; line-height: 1; }
 .item-qty {
   position: absolute; right: -5px; bottom: -4px; font-size: 9px; color: var(--bright);
@@ -385,8 +405,22 @@ a { color: var(--yellow); }
 .shop-main { flex: 1; min-width: 0; }
 .shop-row .btn { padding: 3px 8px; font-size: 10px; }
 
-.bestiary { display: flex; flex-direction: column; gap: 2px; max-height: 60vh; overflow-y: auto; }
-.bestiary-row { display: flex; gap: 7px; align-items: center; border-bottom: 1px solid #00000040; padding: 1px 0; font-size: 11px; }
+.bestiary { display: flex; flex-direction: column; gap: 2px; max-height: 62vh; overflow-y: auto; }
+.bestiary-row {
+  display: flex; gap: 7px; align-items: center; width: 100%; text-align: left;
+  border: 0; border-bottom: 1px solid #00000040; background: none; color: inherit;
+  padding: 3px 4px; font-size: 11px; font-family: inherit; cursor: pointer;
+}
+.bestiary-row:hover { background: var(--chrome-hover); }
+.bestiary-row.selected { background: #2a2416; }
+.bestiary-icon { font-size: 18px; width: 22px; text-align: center; }
+.bestiary-name { color: var(--bright); }
+.bestiary-row.tier-unknown { opacity: .55; }
+.bestiary-row.tier-unknown .bestiary-name { color: var(--muted); }
+.bestiary-row.tier-mastered .bestiary-name { color: var(--blue); }
+.bestiary-row.tier-nemesis .bestiary-name { color: var(--yellow); }
+.bestiary-row .bar { height: 4px; }
+.stack.right { align-items: flex-end; }
 
 /* ------------------------------------------------- console (adventure log) */
 .log {
@@ -470,6 +504,7 @@ div.voc-card { cursor: default; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   /* animation-duration alone leaves these mid-keyframe and invisible. */
   .floater { animation: none; opacity: 1; }
+  .monster-icon.champion { animation: none; }
   .bar-fill.hp.critical, .bar-fill.exp.levelled { animation: none; }
 }
 

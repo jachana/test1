@@ -6,8 +6,8 @@ import { getMonster } from '../../data/monsters.js';
 import { SPELLS, canCast, spellsFor } from '../../data/spells.js';
 import { ATTACK_MODES } from '../../core/formulas.js';
 import { formatNumber, ratio } from '../../core/util.js';
-import { combatStats, startHunt, stopAction, travelProblem } from '../../systems/combat.js';
-import { areaEstimate } from '../../systems/guide.js';
+import { activeMonster, combatStats, startHunt, stopAction, travelProblem } from '../../systems/combat.js';
+import { areaEstimate, exclusiveDrops } from '../../systems/guide.js';
 import { maxHp, maxMp } from '../../systems/player.js';
 import { play } from '../sound.js';
 
@@ -83,6 +83,7 @@ export function combatView({ rerender }) {
     play('spell');
   }));
   offCombat.push(on('combat:kill', () => play('kill')));
+  offCombat.push(on('combat:spawn', (m) => { if (m.champion) play('loot'); }));
 
   updates.push(() => {
     const c = combatStats();
@@ -102,9 +103,11 @@ export function combatView({ rerender }) {
       return;
     }
     stopBtn.style.display = '';
-    const m = getMonster(S.combat.monsterId);
+    const m = activeMonster();
     monsterName.textContent = m.name;
+    monsterName.classList.toggle('champion', !!m.champion);
     monsterIcon.textContent = m.icon;
+    monsterIcon.classList.toggle('champion', !!m.champion);
     if (S.combat.respawn > 0) {
       monsterHp.setFill(0, 'dead');
       monsterMeta.textContent = `Next ${m.name.toLowerCase()} in ${(S.combat.respawn / 1000).toFixed(1)}s`;
@@ -249,6 +252,18 @@ export function combatView({ rerender }) {
       ]))),
       el('div', { class: 'muted small', text: e.verdict.note }),
       el('div', { class: 'guide-table' }, rows),
+      (() => {
+        const only = exclusiveDrops(area, AREAS);
+        return only.length
+          ? el('div', { class: 'stack tight' }, [
+            el('div', { class: 'rare-line', text: '★ Only place for:' }),
+            el('div', { class: 'row wrap costs' }, only.slice(0, 5).map((d) => el('span', {
+              class: 'cost rare', title: `${(d.rate * 100).toFixed(2)}% per kill here`,
+              text: `${d.item.icon} ${d.item.name}`,
+            }))),
+          ])
+          : null;
+      })(),
       e.notableDrops.length
         ? el('div', { class: 'stack tight' }, [
           el('div', { class: 'muted small', text: 'Worth walking here for:' }),

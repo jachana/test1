@@ -68,7 +68,49 @@ export const MONSTERS = Object.fromEntries([
   // --------------------------------------------------------------- Late game
   M('warlock', 'Warlock', '🧙‍♂️', 3500, 4000, 25, 30, 95, 300, 1600, [300, 900], [['crystal_ring', 0.01], ['talon', 0.011, 1, 2], ['small_sapphire', 0.014, 1, 2], ['mind_stone', 0.025], ['blue_robe', 0.02], ['golden_armor', 0.00588], ['skull_staff', 0.01428]]),
   M('demon', 'Demon', '👿', 8200, 6000, 50, 55, 110, 380, 1500, [500, 1800], [['giant_sword', 0.01428], ['mastermind_shield', 0.005], ['magic_plate_armor', 0.0013], ['demon_dust', 0.01], ['demon_horn', 0.01], ['might_ring', 0.002], ['stealth_ring', 0.014], ['ring_of_healing', 0.005], ['ice_rapier', 0.006], ['gold_ring', 0.011], ['talon', 0.04, 1, 4], ['devil_helmet', 0.012], ['small_emerald', 0.11, 1, 3], ['platinum_amulet', 0.008], ['double_axe', 0.2], ['golden_legs', 0.004], ['demon_shield', 0.007], ['two_handed_sword', 0.03333]]),
+  // ------------------------------------------------------------------ bosses
+  // The only creatures in the game with a name rather than a species. They live
+  // in one area, behind the quest that kills them once, and they come back —
+  // which is the point: everything else in Tibia ends, and the citadel does not.
+  //
+  // Sized against tools/balance.mjs rather than against the lore. At the health
+  // the real Ferumbras has, a best-geared level 150 knight spends four and a
+  // half minutes in one fight taking three hundred damage a second, which is
+  // not a boss, it is a wall. These are fights you can lose, not ones you
+  // cannot win: about ninety seconds each, and they still empty a backpack.
+  M('orshabaal', 'Orshabaal', '👹', 7500, 9000, 48, 55, 100, 300, 1700, [1500, 4000], [['demon_shield', 0.04], ['golden_armor', 0.03], ['magic_plate_armor', 0.012], ['demon_horn', 0.3, 1, 3], ['talon', 0.2, 1, 5], ['small_emerald', 0.4, 2, 6], ['golden_legs', 0.02], ['might_ring', 0.05], ['platinum_amulet', 0.05]]),
+  M('ghazbaran', 'Ghazbaran', '🦇', 9000, 11000, 50, 58, 110, 330, 1700, [1800, 4500], [['mastermind_shield', 0.035], ['magic_plate_armor', 0.015], ['demon_dust', 0.3, 1, 3], ['stealth_ring', 0.1], ['small_sapphire', 0.4, 2, 6], ['dragon_scale_mail', 0.012], ['crystal_ring', 0.1], ['ring_of_healing', 0.06]]),
+  M('ferumbras', 'Ferumbras', '🧙‍♂️', 13000, 17000, 52, 62, 120, 380, 1600, [2500, 6000], [['magic_plate_armor', 0.03], ['demon_armor', 0.02], ['golden_legs', 0.04], ['dragon_scale_mail', 0.02], ['thunder_hammer', 0.03], ['magic_sword', 0.03], ['royal_helmet', 0.06], ['small_diamond', 0.5, 2, 8], ['gold_ring', 0.15], ['blue_robe', 0.08]]),
 ].map((m) => [m.id, m]));
+
+/**
+ * Champions: the same creature, but the one that has been eating.
+ *
+ * Roughly one spawn in forty comes up bigger, hits harder, and is worth three
+ * times as much — and rolls its loot table twice, so the drop you have been
+ * hunting for is twice as likely out of it. It is the reason to glance at a tab
+ * you left running: an hour of rats is an hour of rats, but somewhere in it is
+ * a Champion Rat worth stopping for.
+ *
+ * Attack speed is deliberately not scaled: a champion is a longer, heavier
+ * fight, not a faster one.
+ */
+export const CHAMPION_CHANCE = 0.025;
+export const CHAMPION = { hp: 2.6, damage: 1.35, exp: 3, gold: 3, lootRolls: 2 };
+
+/** The champion version of a creature. Pure: it does not touch game state. */
+export function asChampion(monster) {
+  return {
+    ...monster,
+    name: `Champion ${monster.name}`,
+    hp: Math.round(monster.hp * CHAMPION.hp),
+    min: Math.round(monster.min * CHAMPION.damage),
+    max: Math.round(monster.max * CHAMPION.damage),
+    exp: Math.round(monster.exp * CHAMPION.exp),
+    gold: [Math.round(monster.gold[0] * CHAMPION.gold), Math.round(monster.gold[1] * CHAMPION.gold)],
+    champion: true,
+  };
+}
 
 export function getMonster(id) {
   const m = MONSTERS[id];

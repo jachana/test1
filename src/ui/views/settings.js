@@ -1,8 +1,7 @@
 import { el, card, button } from '../dom.js';
 import { S, exportSave, importSave, save, wipe, pushLog } from '../../core/state.js';
-import { MONSTERS } from '../../data/monsters.js';
 import { formatNumber } from '../../core/util.js';
-import { totalKills } from '../../core/engine.js';
+import { bestiarySummary } from '../../systems/bestiary.js';
 import { play, setSound } from '../sound.js';
 
 function toggle(label, get, set, hint) {
@@ -14,7 +13,7 @@ function toggle(label, get, set, hint) {
   ]);
 }
 
-export function settingsView({ rerender }) {
+export function settingsView({ rerender, navigate }) {
   const automation = card('⚙️ Automation', [
     toggle('Auto-eat', () => S.settings.autoEat, (v) => { S.settings.autoEat = v; },
       'Eats the cheapest food in your backpack when your regeneration runs low.'),
@@ -107,19 +106,11 @@ export function settingsView({ rerender }) {
     }, { class: 'btn-danger' }),
   ]);
 
-  const killed = Object.entries(S.stats.kills).sort((a, b) => b[1] - a[1]);
+  const summary = bestiarySummary();
   const bestiary = card('📖 Bestiary', [
-    el('div', { class: 'muted small', text: `${killed.length} of ${Object.keys(MONSTERS).length} creatures slain · ${formatNumber(totalKills())} kills total` }),
-    el('div', { class: 'bestiary' }, killed.length
-      ? killed.map(([id, kills]) => {
-        const m = MONSTERS[id];
-        return el('div', { class: 'bestiary-row' }, [
-          el('span', { text: m?.icon ?? '❓' }),
-          el('span', { class: 'grow', text: m?.name ?? id }),
-          el('span', { class: 'tag', text: formatNumber(kills) }),
-        ]);
-      })
-      : [el('div', { class: 'muted', text: 'Nothing slain yet.' })]),
+    el('div', { class: 'muted small', text: `${summary.met} of ${summary.total} creatures met · ${summary.mastered} mastered · ${formatNumber(summary.kills)} kills total` }),
+    el('p', { class: 'muted small', text: 'The bestiary has its own page now, with what each creature drops and what killing enough of them earns you.' }),
+    button('Open the bestiary', () => navigate('bestiary'), { class: 'btn-primary' }),
   ]);
 
   const node = el('div', { class: 'grid-2' }, [el('div', {}, [automation, sound, saveCard]), el('div', {}, [bestiary])]);

@@ -1,6 +1,6 @@
 import { el, bar, card, button, itemIcon, itemGlyph } from '../dom.js';
 import { S, pushLog } from '../../core/state.js';
-import { getItem, slotOf } from '../../data/items.js';
+import { getItem, slotOf, rarityOf } from '../../data/items.js';
 import { sellPrice } from '../../data/shops.js';
 import { formatNumber, formatWeight } from '../../core/util.js';
 import {
@@ -125,8 +125,8 @@ export function inventoryView_({ rerender }) {
       el('div', { class: 'detail-head' }, [
         itemGlyph(item, { class: 'detail-icon' }),
         el('div', {}, [
-          el('div', { class: 'detail-name', text: item.name }),
-          el('div', { class: 'muted small', text: `${formatNumber(count(item.id))} in backpack · ${item.type}` }),
+          el('div', { class: `detail-name rarity-${rarityOf(item).id}`, text: item.name }),
+          el('div', { class: 'muted small', text: `${rarityOf(item).name} · ${formatNumber(count(item.id))} in backpack · ${item.type}` }),
         ]),
       ]),
       el('div', { class: 'derived' }, lines.map(([k, v]) => el('div', { class: 'kv' }, [
@@ -143,8 +143,8 @@ export function inventoryView_({ rerender }) {
       grid.replaceChildren(el('div', { class: 'muted', text: 'Your backpack is empty.' }));
     } else {
       grid.replaceChildren(...view.map((entry) => el('button', {
-        class: `item-tile${selected === entry.id ? ' selected' : ''}`,
-        title: entry.item.name,
+        class: `item-tile rarity-${rarityOf(entry.item).id}${selected === entry.id ? ' selected' : ''}`,
+        title: `${entry.item.name} · ${rarityOf(entry.item).name}`,
         onClick: () => { selected = entry.id; renderDetail(); renderGrid(); },
       }, [
         itemIcon(entry.item, entry.qty),

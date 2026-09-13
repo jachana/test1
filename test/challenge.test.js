@@ -10,7 +10,7 @@ import { autoPotion, regenTick, chooseVocation, POTION_EXHAUST_MS, DEATH_WINDOW_
 import { addItem, count } from '../src/systems/inventory.js';
 import { startHunt } from '../src/systems/combat.js';
 import { AREAS } from '../src/data/areas.js';
-import { areaEstimate } from '../src/systems/guide.js';
+import { areaEstimate, exclusiveDrops } from '../src/systems/guide.js';
 
 const GEAR = [
   { from: 1, gear: {} },
@@ -108,7 +108,7 @@ test('no hunting ground is dead content', () => {
   // values every drop at its shop price, while a real hunt only keeps what fits
   // in the backpack — so this asserts top-two rather than outright first.
   const leaders = new Set();
-  for (const level of [1, 8, 20, 30, 40, 50, 60, 70, 85, 100, 130]) {
+  for (const level of [1, 8, 20, 30, 40, 50, 60, 70, 85, 100, 130, 160]) {
     setState(createState('Ladder'));
     if (level >= 8) {
       S.char.exp = 4200;
@@ -128,9 +128,12 @@ test('no hunting ground is dead content', () => {
       for (const e of [...open].sort((a, b) => b[key] - a[key]).slice(0, 2)) leaders.add(e.area.id);
     }
   }
-  const dead = AREAS.filter((a) => !leaders.has(a.id));
+  // An area is also worth walking to if it is the only sensible source of
+  // something: the citadel is the slowest experience in the endgame and where
+  // three of the best pieces of armour in the game actually come from.
+  const dead = AREAS.filter((a) => !leaders.has(a.id) && exclusiveDrops(a, AREAS).length === 0);
   assert.deepEqual(dead.map((a) => a.id), [],
-    `dead content — never a top-two choice for experience or gold at any level: ${dead.map((a) => a.name).join(', ')}`);
+    `dead content — never a top-two choice for experience or gold, and nothing drops here that does not drop better elsewhere: ${dead.map((a) => a.name).join(', ')}`);
 });
 
 test('a rune you cannot pay for is a rune you wait for', async () => {

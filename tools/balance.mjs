@@ -11,7 +11,7 @@
 import { createState, setState, S } from '../src/core/state.js';
 import { tick } from '../src/core/engine.js';
 import { startHunt, travelProblem } from '../src/systems/combat.js';
-import { areaEstimate } from '../src/systems/guide.js';
+import { areaEstimate, exclusiveDrops } from '../src/systems/guide.js';
 import { chooseVocation, maxHp, maxMp } from '../src/systems/player.js';
 import { addItem } from '../src/systems/inventory.js';
 import { AREAS } from '../src/data/areas.js';
@@ -30,9 +30,10 @@ const LADDER = [
   { from: 60, gear: { weapon: 'giant_sword', armour: 'knight_armor', shield: 'guardian_shield', helmet: 'crown_helmet', legs: 'knight_legs', boots: 'steel_boots' } },
   { from: 85, gear: { weapon: 'ravagers_axe', armour: 'crown_armor', shield: 'dragon_shield', helmet: 'crown_helmet', legs: 'golden_legs', boots: 'steel_boots' } },
   { from: 110, gear: { weapon: 'ravagers_axe', armour: 'magic_plate_armor', shield: 'dragon_shield', helmet: 'demon_helmet', legs: 'golden_legs', boots: 'steel_boots', amulet: 'stone_skin_amulet', ring: 'might_ring' } },
+  { from: 140, gear: { weapon: 'magic_sword', armour: 'demon_armor', shield: 'mastermind_shield', helmet: 'royal_helmet', legs: 'golden_legs', boots: 'boots_of_haste', amulet: 'platinum_amulet', ring: 'might_ring' } },
 ];
 
-const LEVELS = [1, 8, 15, 20, 25, 30, 40, 50, 60, 70, 85, 100, 120, 150];
+const LEVELS = [1, 8, 15, 20, 25, 30, 40, 50, 60, 70, 85, 100, 120, 150, 180];
 
 const BANDS = LEVELS.map((level) => ({
   level,
@@ -153,6 +154,17 @@ for (const level of LEVELS) {
   const [best] = rows;
   winners.set(best.area.id, (winners.get(best.area.id) ?? 0) + 1);
   console.log(`  lvl ${String(level).padStart(3)}  ${best.area.name.padEnd(26)} req ${String(best.area.req).padStart(3)}  ${num(best.gold)} gp/h`);
+}
+
+// An area is worth going to if it leads a column or if it is the only place
+// something worth having actually drops.
+console.log('\n\x1b[1mOnly place for\x1b[0m');
+for (const area of AREAS) {
+  if (only && area.id !== only) continue;
+  const drops = exclusiveDrops(area, AREAS);
+  if (!drops.length) continue;
+  winners.set(area.id, (winners.get(area.id) ?? 0) + 1);
+  console.log(`  ${area.name.padEnd(26)} ${drops.slice(0, 4).map((d) => d.item.name).join(', ')}`);
 }
 
 const dead = AREAS.filter((a) => !winners.has(a.id) && (!only || a.id === only));
