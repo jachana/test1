@@ -37,29 +37,56 @@ test('a fresh citizen is told Rookgaard is workable and Hellgate is not', () => 
   assert.equal(areaEstimate(getArea('hellgate')).verdict.id, 'deadly');
 });
 
-test('the guide predicts the attrition a real hunt produces', async () => {
-  // Ground truth: run the fight and compare it against what the guide claimed.
+test('the guide predicts the damage a real hunt deals, per kill', async () => {
+  // Ground truth. Held still on purpose: no levelling, no regeneration, no
+  // potions, no walking back — so the only thing varying is the dice, and the
+  // expectation is summed over the creatures that actually spawned rather than
+  // over the area's average mix.
   const { tick } = await import('../src/core/engine.js');
   const { startHunt } = await import('../src/systems/combat.js');
-  setState(createState('Truth'));
-  S.settings.autoPotion = false; // isolate the combat model from the supply line
-  S.settings.autoReturn = false;
-  const predicted = areaEstimate(getArea('rookgaard_sewers')).incoming;
+  const { monsterEstimate } = await import('../src/systems/guide.js');
+  const { chooseVocation } = await import('../src/systems/player.js');
+  const { on } = await import('../src/core/bus.js');
 
-  startHunt('rookgaard_sewers');
-  const before = S.char.hp;
-  let healed = 0;
-  const startDeaths = S.stats.deaths;
-  for (let i = 0; i < 600 * 10 && S.stats.deaths === startDeaths; i++) {
+  setState(createState('Truth'));
+  S.char.exp = 4200;
+  S.char.level = 8;
+  chooseVocation('knight');
+  S.char.level = 60;
+  S.skills.axe.level = 55;
+  S.skills.shielding.level = 45;
+  Object.assign(S.equipment, { weapon: 'knight_axe', armour: 'plate_armor', shield: 'plate_shield' });
+  Object.assign(S.settings, { autoPotion: false, autoEat: false, autoReturn: false });
+  S.char.food = 0; // no regeneration, so every point of damage is visible
+
+  const perKill = new Map();
+  for (const [id] of getArea('plains_of_havoc').spawns) perKill.set(id, monsterEstimate(id).damagePerKill);
+
+  // Count kills off the event, not off the monster id changing: two ghouls in
+  // a row look identical from the outside, and dropping those repeats from the
+  // expectation while still counting their damage inflated the ratio by ~35%.
+  let expected = 0;
+  let kills = 0;
+  on('combat:kill', (monster) => {
+    expected += perKill.get(monster.id) ?? 0;
+    kills++;
+  });
+
+  startHunt('plains_of_havoc');
+  let taken = 0;
+  const maxHp = S.char.hp;
+
+  for (let i = 0; i < 60 * 60 * 10 && kills < 250; i++) {
     const hpBefore = S.char.hp;
     tick(100);
-    if (S.char.hp > hpBefore) healed += S.char.hp - hpBefore;
+    if (S.char.hp < hpBefore) taken += hpBefore - S.char.hp;
+    S.char.hp = maxHp; // top up so the sample is never cut short by a death
   }
-  const seconds = 600;
-  const actual = (before - S.char.hp + healed) / seconds;
-  const ratio = actual / predicted;
-  assert.ok(ratio > 0.6 && ratio < 1.6,
-    `guide predicted ${predicted.toFixed(2)} hp/s, the fight dealt ${actual.toFixed(2)} hp/s`);
+
+  assert.ok(kills > 200, `only ${kills} kills sampled`);
+  const ratio = taken / expected;
+  assert.ok(ratio > 0.85 && ratio < 1.2,
+    `over ${kills} kills the guide predicted ${expected.toFixed(0)} damage, the fight dealt ${taken.toFixed(0)} (${ratio.toFixed(2)}x)`);
 });
 
 test('the endgame becomes affordable once you are strong enough', () => {

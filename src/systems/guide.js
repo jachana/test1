@@ -24,7 +24,8 @@ function outgoingDps(monster) {
   const max = maxHit(profile.attack, skill, S.char.level, S.settings.attackMode);
   const lo = Math.max(1, Math.floor(max * 0.4));
   const perSwing = hitChance(skill, monster.def) * expectedAfterArmour(lo, max, monster.arm, 1);
-  let dps = perSwing / (playerAttackInterval() / 1000);
+  const weapon = perSwing / (playerAttackInterval() / 1000);
+  let spellDps = 0;
 
   const spell = SPELLS[S.settings.attackSpell];
   if (spell) {
@@ -33,9 +34,9 @@ function outgoingDps(monster) {
     // Only counts while you can pay for it; mana regen sets the real ceiling.
     const manaPerSecond = (vocation().manaRegen.amount + Math.floor(S.char.level / 15)) / vocation().manaRegen.seconds;
     const castsPerSecond = Math.min(1000 / spell.cooldown, manaPerSecond / spell.mana);
-    dps += soaked * castsPerSecond;
+    spellDps = soaked * castsPerSecond;
   }
-  return dps;
+  return { weapon, spell: spellDps, total: weapon + spellDps };
 }
 
 /** Damage that gets through per blow the creature lands, after blocks and armour. */
@@ -62,16 +63,40 @@ function killValue(monster) {
   return gold + loot;
 }
 
+/**
+ * How many blows a creature gets in before a fight that lasts `swings` of the
+ * player's attack interval ends.
+ *
+ * Both timers start at zero on spawn, so the kth blow lands at k * speed and
+ * the kill lands at swings * interval — and when those coincide the player
+ * swings first, which is why the count is strict. Fractional swing counts are
+ * interpolated between the two integers they sit between: rounding instead
+ * would drop a whole blow, and the continuous `ttk / speed - 0.5` this
+ * replaces was out by up to 30% whenever interval and speed nearly agreed.
+ */
+function blowsBefore(swings, intervalMs, speedMs) {
+  const at = (n) => Math.max(0, Math.ceil((n * intervalMs) / speedMs) - 1);
+  const lo = Math.floor(swings);
+  const frac = swings - lo;
+  return at(lo) * (1 - frac) + at(lo + 1) * frac;
+}
+
 export function monsterEstimate(monsterId) {
   const monster = getMonster(monsterId);
   const dps = outgoingDps(monster);
-  const ttk = monster.hp / Math.max(0.1, dps);
+  const intervalMs = playerAttackInterval();
+
+  // Damage arrives in lumps, not as a stream: the first swing only lands a full
+  // interval after the creature spawns, so a fight that "should" take 1.05s
+  // really takes 2.05s. Half an interval is the average of that delay across
+  // fights, weighted by how much of your damage comes from the weapon rather
+  // than from an auto-cast spell, which does not wait for the swing timer.
+  const weaponShare = dps.total > 0 ? dps.weapon / dps.total : 1;
+  const ttk = monster.hp / Math.max(0.1, dps.total) + (intervalMs / 1000) * 0.5 * weaponShare;
   const cycle = ttk + RESPAWN_S;
-  // A creature's first blow lands a full interval after it spawns, and nothing
-  // hits you during the respawn gap — so the sustained rate is blows-per-fight
-  // spread over the whole cycle, not a continuous stream.
+
   const perBlow = damagePerBlow(monster);
-  const blowsPerFight = Math.max(0, ttk / (monster.speed / 1000) - 0.5);
+  const blowsPerFight = blowsBefore((ttk * 1000) / intervalMs, intervalMs, monster.speed);
   const damagePerKill = perBlow * blowsPerFight;
   return {
     monster,
