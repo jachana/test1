@@ -162,7 +162,7 @@ a { color: var(--yellow); }
 .bar-fill.gathering { background: #3d6f8c; }
 .bar-fill.production { background: #9a7233; }
 .bar-fill.action { background: var(--exp); }
-.bar-fill.swing { background: #8c8471; }
+.bar-fill.swing { background: #8c8471; transition: none; } /* resets every swing; a transition makes it run backwards */
 .bar-label {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 10px; font-family: var(--display); color: var(--bright); text-shadow: 1px 1px 0 #000;
@@ -243,12 +243,42 @@ a { color: var(--yellow); }
 .fighter-title, .monster-name { font-family: var(--display); color: var(--bright); font-size: 13px; }
 .monster-icon { font-size: 42px; line-height: 1.1; }
 .versus { font-size: 18px; color: var(--muted); }
+/* Damage numbers rise off the fighter they landed on and fade. Each blow gets
+   its own element, removed on animationend — the old single node just had its
+   textContent overwritten every tick, so a fight was a number that flickered. */
+.floaters { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .floater {
-  position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
-  font-family: var(--display); font-size: 16px; color: var(--red); text-shadow: 1px 1px 0 #000;
-  pointer-events: none;
+  position: absolute; top: 30%; left: 50%;
+  font-family: var(--display); font-size: 16px; color: var(--red); text-shadow: 1px 1px 0 #000, 0 0 6px #0009;
+  pointer-events: none; white-space: nowrap;
+  animation: float-up 1.1s ease-out forwards;
 }
 .floater.monster { color: var(--yellow); }
+.floater.crit { font-size: 21px; color: #ffd76e; }
+.floater.miss, .floater.blocked { color: var(--muted); font-size: 13px; }
+.floater.heal { color: var(--green); }
+.floater.spell { color: var(--mana); }
+@keyframes float-up {
+  0%   { opacity: 0; transform: translate(-50%, 6px) scale(.85); }
+  18%  { opacity: 1; transform: translate(-50%, -2px) scale(1.08); }
+  30%  { transform: translate(-50%, -6px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(1); }
+}
+
+/* Below a third of your health the bar breathes, so a hunt going wrong is
+   visible from across the room rather than only in the log. */
+.bar-fill.hp.critical { animation: hp-critical .7s ease-in-out infinite; }
+@keyframes hp-critical {
+  0%, 100% { background: var(--hp); box-shadow: inset 0 1px 0 #ffffff26; }
+  50%      { background: #ff6b5e; box-shadow: inset 0 1px 0 #ffffff26, 0 0 10px #ff6b5e88; }
+}
+
+/* A level is worth a moment: the bar flashes gold and empties into the next one. */
+.bar-fill.exp.levelled { animation: level-flash 1s ease-out; }
+@keyframes level-flash {
+  0%   { background: var(--yellow); filter: brightness(1.9); }
+  100% { background: var(--exp); filter: none; }
+}
 .status-line { font-size: 11px; color: var(--muted); text-align: center; }
 
 .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 6px; }
@@ -257,6 +287,10 @@ a { color: var(--yellow); }
   background: var(--chrome-face); color: var(--text); padding: 7px;
 }
 .area-card:hover { background: var(--chrome-hover); }
+.area-card:active, .item-tile:active, .action-row:active, .shop-row:active, .voc-card:active, .btn:active {
+  border-color: var(--chrome-dark) var(--chrome-lit) var(--chrome-lit) var(--chrome-dark);
+  transform: translateY(1px);
+}
 .area-card.active { background: #2f3a22; border-color: var(--green) var(--chrome-dark) var(--chrome-dark) var(--green); }
 .area-card.risky { opacity: .85; }
 .area-card.risky .tag { color: var(--red); }
@@ -384,6 +418,9 @@ a { color: var(--yellow); }
 .toast.out { opacity: 0; }
 .toast.bad { color: var(--red); }
 .toast.skill { color: var(--blue); }
+.toast.loot { color: var(--yellow); }
+.rare-line { font-family: var(--display); font-size: 13px; color: var(--yellow); text-shadow: 0 0 8px #ffd76e55; }
+.toast.quest { color: var(--green); }
 
 .modal-backdrop {
   position: fixed; inset: 0; background: #000000c4; display: flex; align-items: center;
@@ -431,6 +468,9 @@ div.voc-card { cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  /* animation-duration alone leaves these mid-keyframe and invisible. */
+  .floater { animation: none; opacity: 1; }
+  .bar-fill.hp.critical, .bar-fill.exp.levelled { animation: none; }
 }
 
 /* --------------------------------------------------------------- responsive */

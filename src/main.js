@@ -6,10 +6,14 @@ import { vocationModal } from './ui/views/vocation.js';
 import { canChooseVocation } from './data/vocations.js';
 import { creationView } from './ui/views/creation.js';
 import { clear, el, button } from './ui/dom.js';
+import { setSound } from './ui/sound.js';
 
 const root = document.getElementById('app');
 
 function boot() {
+  // The saved preference has to reach the audio module before anything can emit
+  // a sound; nothing is constructed until the first one actually plays.
+  setSound(S.settings.sound, S.settings.volume);
   const summary = simulateOffline();
   mountShell(root);
   startEngine();

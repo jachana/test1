@@ -1,10 +1,11 @@
 import { el, bar, button, clear } from './dom.js';
 import { on } from '../core/bus.js';
-import { S, save } from '../core/state.js';
+import { S, save, pushLog } from '../core/state.js';
 import { SKILLS } from '../data/skills.js';
 import { ACTIONS, getAction } from '../data/actions.js';
 import { AREAS } from '../data/areas.js';
 import { getMonster } from '../data/monsters.js';
+import { getItem } from '../data/items.js';
 import { expProgress } from '../core/formulas.js';
 import { formatDuration, formatNumber, ratio } from '../core/util.js';
 import { capacity, totalWeight } from '../systems/inventory.js';
@@ -19,6 +20,7 @@ import { questsView } from './views/quests.js';
 import { getQuest } from '../data/quests.js';
 import { vocationModal } from './views/vocation.js';
 import { canChooseVocation, VOCATIONS } from '../data/vocations.js';
+import { play, setSound, soundEnabled } from './sound.js';
 
 const NAV = [
   { route: 'character', label: 'Character', icon: '🧝' },
@@ -35,6 +37,7 @@ const NAV = [
 let route = 'combat';
 let active = null;
 let shell = null;
+let headerBars = null;
 const shellUpdates = [];
 
 function buildView(ctx) {
@@ -58,6 +61,9 @@ export function navigate(next) {
 export function rerender() {
   if (!shell) return;
   const ctx = { rerender, navigate };
+  // Views subscribe to the bus now, so the outgoing one has to be told to let
+  // go — otherwise every navigation leaves another set of live handlers behind.
+  active?.dispose?.();
   active = buildView(ctx);
   clear(shell.main).append(active.node);
   shell.renderNav();
@@ -97,7 +103,9 @@ function buildHeader() {
     name.textContent = S.char.name;
     level.textContent = `Level ${p.level} ${VOCATIONS[S.char.vocation].name}`;
     expBar.setFill(p.ratio, `${Math.floor(p.ratio * 100)}% to ${p.level + 1}`);
-    hpBar.setFill(ratio(S.char.hp, maxHp()), `${Math.ceil(S.char.hp)} hp`);
+    const hpShare = ratio(S.char.hp, maxHp());
+    hpBar.setFill(hpShare, `${Math.ceil(S.char.hp)} hp`);
+    hpBar.setCritical(hpShare < 0.3);
     mpBar.setFill(ratio(S.char.mana, maxMp()), `${Math.floor(S.char.mana)} mana`);
     foodBar.setFill(ratio(S.char.food, FOOD_CAP_SECONDS), S.char.food > 0 ? `${Math.ceil(S.char.food / 60)}m food` : 'hungry');
     const act = currentActivity();
@@ -105,6 +113,9 @@ function buildHeader() {
     gold.textContent = `🪙 ${formatNumber(S.gold)}`;
     cap.textContent = `${Math.floor(capacity() - totalWeight())} oz free`;
   });
+
+  // Handed to the level-up listener so the bar can flash when it wraps.
+  headerBars = { expBar, hpBar };
 
   return el('header', { class: 'hdr' }, [
     el('div', { class: 'hdr-left' }, [
@@ -139,24 +150,65 @@ function buildNav() {
   return { nav, renderNav };
 }
 
+const LOG_SHOWN = 40;
+
+function logEntry(entry) {
+  return el('div', { class: `log-entry ${entry.kind}` }, [
+    el('span', { class: 'log-text', text: entry.text }),
+    entry.count > 1 ? el('span', { class: 'log-count', text: `×${entry.count}` }) : null,
+  ]);
+}
+
 function buildLog() {
   const list = el('div', { class: 'log-list' });
-  let lastCount = -1;
-  const render = () => {
-    list.replaceChildren(...S.log.slice(0, 40).map((entry) => el('div', { class: `log-entry ${entry.kind}` }, [
-      el('span', { class: 'log-text', text: entry.text }),
-      entry.count > 1 ? el('span', { class: 'log-count', text: `×${entry.count}` }) : null,
-    ])));
+  let lastSeq = -1;
+  let lastTop = null; // the entry object at S.log[0] as of the last render
+
+  const rebuild = () => {
+    list.replaceChildren(...S.log.slice(0, LOG_SHOWN).map(logEntry));
+    lastTop = S.log[0] ?? null;
   };
+
+  /**
+   * A hunt writes a line every couple of seconds and the log is rebuilt on
+   * every write. Rebuilding forty nodes to add one is most of what the shell
+   * did between ticks, so add only what is actually new.
+   *
+   * pushLog either unshifts a new entry or bumps `count` on the existing top
+   * one, so the entry object at index 0 tells us which happened.
+   */
+  const render = () => {
+    const top = S.log[0] ?? null;
+    if (!top) { rebuild(); return; }
+
+    if (top === lastTop) {
+      // Same entry, repeated: refresh its ×N in place.
+      const first = list.firstElementChild;
+      if (!first) { rebuild(); return; }
+      const badge = first.querySelector('.log-count');
+      if (top.count > 1 && badge) badge.textContent = `×${top.count}`;
+      else if (top.count > 1) first.append(el('span', { class: 'log-count', text: `×${top.count}` }));
+      return;
+    }
+
+    const added = lastTop ? S.log.indexOf(lastTop) : -1;
+    // -1 means the previous top has scrolled off (or this is the first render);
+    // anything past the visible window is the same as a full repaint.
+    if (added < 0 || added > LOG_SHOWN) { rebuild(); return; }
+    list.prepend(...S.log.slice(0, added).map(logEntry));
+    while (list.childElementCount > LOG_SHOWN) list.lastElementChild.remove();
+    lastTop = top;
+  };
+
   shellUpdates.push(() => {
     // pushLog bumps logSeq on every write. Deriving the key from length instead
     // froze the log at MAX_LOG, where length stops changing.
-    if (S.logSeq !== lastCount) {
-      lastCount = S.logSeq;
+    if (S.logSeq !== lastSeq) {
+      lastSeq = S.logSeq;
       render();
     }
   });
-  render();
+  rebuild();
   return el('aside', { class: 'log' }, [el('h3', { class: 'card-title', text: '📜 Adventure Log' }), list]);
 }
 
@@ -183,14 +235,42 @@ export function offlineModal(summary, onClose) {
   const backdrop = el('div', { class: 'modal-backdrop' });
   const modal = el('div', { class: 'modal' }, [
     el('h2', { text: 'Welcome back' }),
-    el('p', { class: 'muted small', text: summary.stopped ? 'Your character stopped early — check the log.' : 'Your character kept grinding while you were away.' }),
+    // "Check the log" is not an answer when the replay's log was suppressed.
+    // Say what actually stopped them, and hand over the button that fixes it.
+    el('p', { class: summary.stopped ? 'warn small' : 'muted small' }, [
+      summary.stopped
+        ? (summary.stoppedBecause ?? 'Your character stopped early.')
+        : 'Your character kept grinding while you were away.',
+    ]),
     el('div', { class: 'derived' }, lines.map(([k, v]) => el('div', { class: 'kv' }, [
       el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v }),
     ]))),
     summary.skillLevels.length
       ? el('div', { class: 'stack tight' }, summary.skillLevels.map((s) => el('div', { class: 'muted small', text: `${SKILLS[s.id].icon} ${SKILLS[s.id].name} ${s.from} → ${s.to}` })))
       : null,
-    button('Continue', () => { backdrop.remove(); onClose?.(); }, { class: 'btn-primary btn-lg' }),
+    summary.rare?.length
+      ? el('div', { class: 'rare-line', text: `✨ Rare find: ${summary.rare.join(', ')}` })
+      : null,
+    summary.loot?.length
+      ? el('div', { class: 'stack tight' }, [
+        el('div', { class: 'muted small', text: summary.lootKinds > summary.loot.length
+          ? `Best of ${summary.lootKinds} kinds of loot:`
+          : 'Loot:' }),
+        el('div', { class: 'row wrap costs' }, summary.loot.map(({ id, qty }) => el('span', {
+          class: 'cost', text: `${getItem(id).icon} ${getItem(id).name}${qty > 1 ? ` ×${formatNumber(qty)}` : ''}`,
+        }))),
+      ])
+      : null,
+    el('div', { class: 'row wrap' }, [
+      button('Continue', () => { backdrop.remove(); onClose?.(); }, { class: 'btn-primary btn-lg' }),
+      // The point of telling you it stopped is that you can do something now.
+      summary.stopped
+        ? button('Go to the Hunt page', () => { backdrop.remove(); onClose?.(); navigate('combat'); }, { class: 'btn-lg' })
+        : null,
+      summary.stopped
+        ? button('Restock', () => { backdrop.remove(); onClose?.(); navigate('shop'); }, { class: 'btn-lg' })
+        : null,
+    ]),
   ]);
   backdrop.append(modal);
   document.body.append(backdrop);
@@ -220,13 +300,33 @@ export function mountShell(root) {
   };
 
   on('tick', () => shell.update());
-  on('levelup', ({ level }) => toast(`Level ${level}!`, 'level'));
+  on('levelup', ({ level }) => {
+    toast(`Level ${level}!`, 'level');
+    headerBars?.expBar.flash('levelled');
+    play('level');
+  });
   on('vocation:available', () => vocationModal(() => rerender()));
   on('vocation:chosen', () => { renderNav(); rerender(); });
-  on('skillup', ({ skillId, level }) => toast(`${SKILLS[skillId].name} ${level}`, 'skill'));
-  on('death', () => { toast('You are dead!', 'bad'); rerender(); });
+  on('skillup', ({ skillId, level }) => { toast(`${SKILLS[skillId].name} ${level}`, 'skill'); play('skill'); });
+  on('death', () => { toast('You are dead!', 'bad'); play('death'); rerender(); });
   on('action:changed', () => { renderNav(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+  // These four had publishers and no subscribers at all, which is why finishing
+  // a quest, landing a rare drop or completing an hour of runes was invisible
+  // unless you happened to be reading the log at that second.
+  on('loot:rare', ({ item, chance }) => {
+    toast(`${item.icon} ${item.name}!`, 'loot');
+    play('loot');
+    pushLog(`You found ${item.name} — a ${(chance * 100).toFixed(chance < 0.01 ? 2 : 1)}% drop.`, 'level');
+  });
+  on('quest:done', ({ quest }) => { toast(`${quest.icon} ${quest.name} complete!`, 'quest'); play('quest'); rerender(); });
+  on('idle:complete', ({ rare }) => { if (rare) play('loot'); });
+  on('potion', () => play('potion'));
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) save();
+    else setSound(soundEnabled()); // resumes the AudioContext the tab suspended
+  });
 
   rerender();
   return shell;

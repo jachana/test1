@@ -18,6 +18,9 @@ import { questGateFor } from '../data/quests.js';
 import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
 
+/** A drop this unlikely is worth interrupting the player for. */
+const RARE_DROP = 0.02;
+
 /** Dying this many times inside one DEATH_WINDOW_MS means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
 
@@ -109,6 +112,7 @@ function playerAttack(monster) {
   const skill = skillLevel(profile.skill);
   if (!roll(hitChance(skill, monster.def))) {
     S.combat.lastPlayerHit = { amount: 0, miss: true };
+    emit('combat:hit', { source: 'player', damage: 0, miss: true });
     return;
   }
 
@@ -120,7 +124,7 @@ function playerAttack(monster) {
   S.combat.hp -= damage;
   S.combat.lastPlayerHit = { amount: damage, miss: false };
   gainSkill(profile.skill, 1);
-  emit('combat:hit', { source: 'player', damage });
+  emit('combat:hit', { source: 'player', damage, miss: false });
 }
 
 /** Returns true when the blow killed us (the caller must stop immediately). */
@@ -131,13 +135,14 @@ function monsterAttack(monster) {
   gainSkill('shielding', 1); // you train shielding by being attacked
   if (roll(blockChance(defence, raw))) {
     S.combat.lastMonsterHit = { amount: 0, blocked: true };
+    emit('combat:hit', { source: 'monster', damage: 0, blocked: true });
     return false;
   }
 
   const damage = Math.max(0, applyArmour(raw, totalArmour()));
   S.char.hp -= damage;
   S.combat.lastMonsterHit = { amount: damage, blocked: false };
-  emit('combat:hit', { source: 'monster', damage });
+  emit('combat:hit', { source: 'monster', damage, blocked: false });
 
   if (S.char.hp > 0) return false;
 
@@ -209,6 +214,9 @@ function grantLoot(monster, area) {
     if (added > 0) {
       gained.push(`${added}x ${item.name}`);
       if (upgrade) pushLog(`${item.name} is better than what you are wearing.`, 'level');
+      // One in fifty or rarer: the whole reason anybody hunts a place twice.
+      if (drop.chance <= RARE_DROP) emit('loot:rare', { item, chance: drop.chance, qty: added });
+      S.stats.rareDrops = (S.stats.rareDrops ?? 0) + (drop.chance <= RARE_DROP ? 1 : 0);
     }
   }
   return { gold, gained };

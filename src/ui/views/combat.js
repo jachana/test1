@@ -1,4 +1,5 @@
 import { el, bar, card, button } from '../dom.js';
+import { on } from '../../core/bus.js';
 import { S, pushLog } from '../../core/state.js';
 import { AREAS } from '../../data/areas.js';
 import { getMonster } from '../../data/monsters.js';
@@ -8,17 +9,35 @@ import { formatNumber, ratio } from '../../core/util.js';
 import { combatStats, startHunt, stopAction, travelProblem } from '../../systems/combat.js';
 import { areaEstimate } from '../../systems/guide.js';
 import { maxHp, maxMp } from '../../systems/player.js';
+import { play } from '../sound.js';
 
 export function combatView({ rerender }) {
   const updates = [];
+  // Every subscription this view makes, so navigating away takes them with it.
+  const offCombat = [];
 
   // ----------------------------------------------------------- arena panel
   const monsterIcon = el('div', { class: 'monster-icon' });
   const monsterName = el('div', { class: 'monster-name' });
   const monsterHp = bar(1, { className: 'hp' });
   const monsterMeta = el('div', { class: 'muted small' });
-  const hitPlayer = el('div', { class: 'floater player' });
-  const hitMonster = el('div', { class: 'floater monster' });
+  // One element per blow, animated and then removed, rather than one node whose
+  // text is overwritten on every tick — which is why a fight used to look like
+  // a single number flickering rather than damage happening.
+  const playerFloaters = el('div', { class: 'floaters' });
+  const monsterFloaters = el('div', { class: 'floaters' });
+  const MAX_FLOATERS = 6;
+
+  function floatText(host, text, kind) {
+    // A backgrounded tab replays hours in one step; without this cap it would
+    // try to animate every blow of it at once.
+    while (host.childElementCount >= MAX_FLOATERS) host.firstElementChild.remove();
+    const node = el('div', { class: `floater ${kind}`, text });
+    // Nudge each one sideways so simultaneous hits do not stack exactly.
+    node.style.left = `${42 + Math.random() * 16}%`;
+    node.addEventListener('animationend', () => node.remove());
+    host.append(node);
+  }
   const playerHp = bar(1, { className: 'hp' });
   const playerMp = bar(1, { className: 'mana' });
   const swingBar = bar(0, { className: 'swing' });
@@ -31,20 +50,45 @@ export function combatView({ rerender }) {
       el('div', { class: 'fighter' }, [
         el('div', { class: 'fighter-title', text: 'You' }),
         el('div', { class: 'monster-icon', text: '🧝' }),
-        playerHp, playerMp, swingBar, hitPlayer,
+        playerHp, playerMp, swingBar, playerFloaters,
       ]),
       el('div', { class: 'versus', text: '⚔️' }),
       el('div', { class: 'fighter' }, [
-        monsterName, monsterIcon, monsterHp, monsterMeta, hitMonster,
+        monsterName, monsterIcon, monsterHp, monsterMeta, monsterFloaters,
       ]),
     ]),
     statusLine,
     el('div', { class: 'row' }, [stopBtn]),
   ]);
 
+  // Live combat events, straight off the bus. These were being emitted into
+  // nothing: combat:hit, combat:spell, combat:kill and combat:spawn all had
+  // publishers and no subscribers, so the fight only ever showed up as text.
+  const CRIT_SHARE = 0.35; // a blow taking this much of a bar reads as a big one
+  offCombat.push(on('combat:hit', ({ source, damage, miss, blocked }) => {
+    if (source === 'player') {
+      if (miss) { floatText(monsterFloaters, 'miss', 'monster miss'); play('miss'); return; }
+      const big = S.combat && damage >= S.combat.maxHp * CRIT_SHARE;
+      floatText(monsterFloaters, `-${damage}`, `monster${big ? ' crit' : ''}`);
+      play('hit');
+    } else {
+      if (blocked) { floatText(playerFloaters, 'blocked', 'player blocked'); return; }
+      floatText(playerFloaters, `-${damage}`, `player${damage >= maxHp() * CRIT_SHARE ? ' crit' : ''}`);
+      play('hurt');
+    }
+  }));
+  offCombat.push(on('combat:spell', ({ amount, kind, spell }) => {
+    if (kind === 'heal') floatText(playerFloaters, `+${amount}`, 'player heal');
+    else floatText(monsterFloaters, `-${amount} ${spell.name}`, 'monster spell');
+    play('spell');
+  }));
+  offCombat.push(on('combat:kill', () => play('kill')));
+
   updates.push(() => {
     const c = combatStats();
-    playerHp.setFill(ratio(S.char.hp, maxHp()), `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
+    const hpShare = ratio(S.char.hp, maxHp());
+    playerHp.setFill(hpShare, `${Math.ceil(S.char.hp)} / ${maxHp()} hp`);
+    playerHp.setCritical(hpShare < 0.3);
     playerMp.setFill(ratio(S.char.mana, maxMp()), `${Math.floor(S.char.mana)} / ${maxMp()} mana`);
 
     if (!S.combat) {
@@ -53,8 +97,6 @@ export function combatView({ rerender }) {
       monsterHp.setFill(0, '');
       monsterMeta.textContent = 'Pick a hunting ground below to start grinding.';
       swingBar.setFill(0, '');
-      hitPlayer.textContent = '';
-      hitMonster.textContent = '';
       statusLine.textContent = '';
       stopBtn.style.display = 'none';
       return;
@@ -71,11 +113,6 @@ export function combatView({ rerender }) {
       monsterMeta.textContent = `${formatNumber(m.exp)} exp · hits ${m.min}-${m.max} · armor ${m.arm}`;
     }
     swingBar.setFill(S.combat.playerTimer / c.attackSpeed, 'attack');
-
-    const ph = S.combat.lastPlayerHit;
-    hitMonster.textContent = ph ? (ph.miss ? 'miss' : `-${ph.amount}${ph.spell ? ` ${ph.spell}` : ''}`) : '';
-    const mh = S.combat.lastMonsterHit;
-    hitPlayer.textContent = mh ? (mh.blocked ? 'blocked' : `-${mh.amount}`) : '';
     statusLine.textContent = `Max hit ${c.maxHit} · armor ${c.armour} · defence ${c.defence} · total kills ${formatNumber(Object.values(S.stats.kills).reduce((a, b) => a + b, 0))}`;
   });
 
@@ -204,5 +241,5 @@ export function combatView({ rerender }) {
   const node = el('div', { class: 'stack' }, [arena, guide, tactics, card('🗺️ Hunting Grounds', areaGrid)]);
   const update = () => updates.forEach((fn) => fn());
   update();
-  return { node, update };
+  return { node, update, dispose: () => offCombat.forEach((off) => off()) };
 }

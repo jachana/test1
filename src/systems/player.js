@@ -225,6 +225,7 @@ export function autoPotion() {
       S.timers.potion = POTION_EXHAUST_MS;
       const healed = heal(potion.heal);
       pushLog(`You drink ${potion.name.toLowerCase()} (+${healed} hp).`, 'good');
+      emit('potion', { potion, healed });
       return true;
     }
   }

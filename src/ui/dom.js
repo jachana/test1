@@ -27,6 +27,15 @@ export function bar(ratio, { className = '', label = '' } = {}) {
     fill.style.width = `${Math.max(0, Math.min(1, r)) * 100}%`;
     if (l != null) text.textContent = l;
   };
+  /** Toggle a CSS state on the fill without the caller reaching inside. */
+  wrap.setState = (name, active) => fill.classList.toggle(name, !!active);
+  wrap.setCritical = (active) => wrap.setState('critical', active);
+  /** Replay a one-shot animation: removing and re-adding the class restarts it. */
+  wrap.flash = (name) => {
+    fill.classList.remove(name);
+    void fill.offsetWidth; // forces the style recalc that makes the restart stick
+    fill.classList.add(name);
+  };
   return wrap;
 }
 

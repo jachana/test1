@@ -69,6 +69,8 @@ export function createState(name, vocation = 'none') {
       autoSell: false,
       lootFilterValue: 0,
       autoReturn: true,
+      sound: false, // an idle game lives in a background tab; ask before making noise
+      volume: 0.25,
     },
     quests: { done: [], choice: {} },
     logSeq: 0, // monotonic: the log's signature for the UI

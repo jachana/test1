@@ -62,7 +62,7 @@ function complete(quest) {
   pushLog(`${quest.name} complete! Chest: ${granted.join(', ')} and ${quest.gold.toLocaleString('en-US')} gold.`, 'level');
 
   S.action = null;
-  emit('quest:done', quest);
+  emit('quest:done', { quest, granted });
   emit('action:changed');
 }
 

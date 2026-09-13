@@ -7,6 +7,9 @@ import { emit } from '../core/bus.js';
 import { addItem, consumeInputs, freeCapacity, hasInputs } from './inventory.js';
 import { gainSkill, skillLevel, spendMana } from './player.js';
 
+/** An output this unlikely is a moment, not a yield. */
+const RARE_CATCH = 0.02;
+
 /** Higher skill makes an action faster, up to 30%. */
 export function actionDuration(skillId, action) {
   const over = Math.max(0, skillLevel(skillId) - action.req);
@@ -64,6 +67,7 @@ function complete(skillId, action) {
   if (action.mana && !spendMana(action.mana)) return false;
 
   let produced = 0;
+  let rare = null;
   for (const o of action.out) {
     if (!roll(o.chance)) continue;
     const qty = randInt(o.lo, o.hi);
@@ -71,12 +75,18 @@ function complete(skillId, action) {
     if (added < qty) {
       pushLog('Your backpack is too heavy — some of the haul was left behind.', 'bad');
     }
+    // The pearls and gems in the deep water: the reason to keep casting.
+    if (added > 0 && o.chance <= RARE_CATCH) {
+      rare = getItem(o.item);
+      pushLog(`You pull up ${rare.name.toLowerCase()}! A ${(o.chance * 100).toFixed(2)}% catch.`, 'level');
+      emit('loot:rare', { item: rare, chance: o.chance, qty: added });
+    }
     produced += added;
   }
   S.stats.actionsDone += 1;
   S.stats.itemsGathered += produced;
   gainSkill(skillId, action.tries);
-  emit('idle:complete', { skillId, action, produced });
+  emit('idle:complete', { skillId, action, produced, rare });
   return true;
 }
 
