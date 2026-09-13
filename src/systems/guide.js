@@ -5,11 +5,11 @@ import { getItem, ITEMS } from '../data/items.js';
 import { SPELLS } from '../data/spells.js';
 import { buyPrice, sellPrice } from '../data/shops.js';
 import {
-  blockChance, defenceValue, expectedAfterArmour, hitChance, maxHit, spellHit,
+  blockChance, defenceValue, expectedAfterArmour, hitChance, maxHit,
   RESPAWN_MS, RESTING_SPEEDUP,
 } from '../core/formulas.js';
 import { totalArmour, shieldDefence } from './inventory.js';
-import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile } from './player.js';
+import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile, castValue } from './player.js';
 
 const RESPAWN_S = RESPAWN_MS / 1000;
 
@@ -30,7 +30,7 @@ function outgoingDps(monster) {
 
   const spell = SPELLS[S.settings.attackSpell];
   if (spell) {
-    const hit = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
+    const hit = castValue(spell);
     const soaked = expectedAfterArmour(hit, hit, Math.floor(monster.arm * 0.5), 1);
     // Only counts while you can pay for it; mana regen sets the real ceiling.
     const manaPerSecond = (vocation().manaRegen.amount + Math.floor(S.char.level / 15)) / vocation().manaRegen.seconds;

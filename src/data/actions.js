@@ -12,12 +12,28 @@ const out = (list) => list.map(([item, chance = 1, lo = 1, hi = lo]) => ({ item,
 const inp = (list) => list.map(([item, qty = 1]) => ({ item, qty }));
 
 export const ACTIONS = {
+  // Fishing is the no-risk, no-supplies alternative to hunting: it pays roughly
+  // a fifth of what the hunting ground you could reach pays, and it cannot kill
+  // you. Two things were wrong with it. The deep water paid LESS than the falls
+  // one tier below, so the last thing you unlocked was a downgrade; and every
+  // tier was pure fish, which meant fishing was solved the moment your food bar
+  // was full — you need sixty food-minutes an hour and the shallows made five
+  // thousand. The deep water now has something worth waiting for in it.
   fishing: [
-    { id: 'fish_shallows', name: 'Rookgaard Shallows', icon: '🌊', req: 10, ms: 2800, tries: 1, out: out([['raw_fish', 0.75]]) },
-    { id: 'fish_river', name: 'Venore River', icon: '🏞️', req: 25, ms: 3600, tries: 1, out: out([['raw_fish', 0.5], ['raw_salmon', 0.4]]) },
-    { id: 'fish_lake', name: 'Carlin Lake', icon: '🎏', req: 45, ms: 4500, tries: 1, out: out([['raw_salmon', 0.4], ['northern_pike', 0.4]]) },
-    { id: 'fish_falls', name: 'Edron Falls', icon: '🌈', req: 65, ms: 5500, tries: 1, out: out([['northern_pike', 0.4], ['rainbow_trout', 0.35]]) },
-    { id: 'fish_deep', name: 'Fibula Deep Water', icon: '🔷', req: 85, ms: 7000, tries: 1, out: out([['rainbow_trout', 0.5], ['northern_pike', 0.3]]) },
+    { id: 'fish_shallows', name: 'Rookgaard Shallows', icon: '🌊', req: 10, ms: 2800, tries: 1, out: out([['raw_fish', 0.85, 1, 2]]) },
+    { id: 'fish_river', name: 'Venore River', icon: '🏞️', req: 25, ms: 3200, tries: 1, out: out([['raw_fish', 0.5], ['raw_salmon', 0.55, 1, 2]]) },
+    {
+      id: 'fish_lake', name: 'Carlin Lake', icon: '🎏', req: 45, ms: 3800, tries: 2,
+      out: out([['raw_salmon', 0.5], ['northern_pike', 0.55, 1, 2], ['white_pearl', 0.004]]),
+    },
+    {
+      id: 'fish_falls', name: 'Edron Falls', icon: '🌈', req: 65, ms: 4400, tries: 3,
+      out: out([['northern_pike', 0.5], ['rainbow_trout', 0.45], ['white_pearl', 0.005], ['small_ruby', 0.003]]),
+    },
+    {
+      id: 'fish_deep', name: 'Fibula Deep Water', icon: '🔷', req: 85, ms: 6000, tries: 4,
+      out: out([['rainbow_trout', 0.7, 1, 2], ['northern_pike', 0.5], ['white_pearl', 0.008], ['small_ruby', 0.005], ['small_diamond', 0.002]]),
+    },
   ],
   runecrafting: [
     { id: 'rune_light_healing', name: 'Light Healing Rune', icon: '💊', req: 1, reqMagic: 1, ms: 2500, tries: 1, mana: 20, inputs: inp([['blank_rune', 1]]), out: out([['rune_light_healing', 1, 1, 2]]) },

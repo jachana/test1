@@ -4,14 +4,14 @@ import { getMonster } from '../data/monsters.js';
 import { SPELLS } from '../data/spells.js';
 import { getItem, slotOf } from '../data/items.js';
 import {
-  applyArmour, blockChance, defenceValue, hitChance, maxHit, spellHit, RESPAWN_MS,
+  applyArmour, blockChance, defenceValue, hitChance, maxHit, RESPAWN_MS,
 } from '../core/formulas.js';
 import { clamp, pickWeighted, randInt, roll } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { addGold, addItem, count, removeItem, totalArmour, shieldDefence } from './inventory.js';
 import {
   autoEat, autoPotion, death, gainExp, gainSkill, heal, maxHp, maxMp,
-  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile, DEATH_WINDOW_MS,
+  playerAttackInterval, regenTick, skillLevel, spendMana, weaponProfile, castValue, DEATH_WINDOW_MS,
 } from './player.js';
 import { VOCATION_LEVEL } from '../data/vocations.js';
 import { questGateFor } from '../data/quests.js';
@@ -164,7 +164,7 @@ function castSpells(dt) {
     const missing = maxHp() - S.char.hp;
     if (missing > 0 && S.char.hp / maxHp() < 0.7 && S.char.mana >= spell.mana) {
       if (spendMana(spell.mana)) {
-        const amount = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
+        const amount = castValue(spell);
         heal(amount);
         emit('combat:spell', { spell, amount, kind: 'heal' });
         return;
@@ -179,7 +179,7 @@ function castSpells(dt) {
   c.spellTimer = 0;
 
   const profile = weaponProfile();
-  let damage = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
+  let damage = castValue(spell);
   if (spell.weaponScale) damage += Math.floor(profile.attack * skillLevel(profile.skill) * 0.02 * spell.weaponScale);
   if (!spendMana(spell.mana)) return;
 

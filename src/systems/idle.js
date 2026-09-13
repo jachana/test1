@@ -90,6 +90,17 @@ export function tickIdle(dt) {
 
   S.action.progress += dt;
   const duration = actionDuration(skillId, action);
+
+  // A rune you cannot pay for is a rune you wait for, not a reason to walk away
+  // from the workbench. Runecrafting used to cancel itself the moment mana ran
+  // short — which it always does, since a sudden death rune costs 985 and no
+  // vocation regenerates that inside one action — so leaving it running
+  // overnight produced a handful of runes and then nothing.
+  if (action.mana && S.char.mana < action.mana) {
+    S.action.progress = Math.min(S.action.progress, duration);
+    return;
+  }
+
   let guard = 0;
   while (S.action && S.action.progress >= duration && guard++ < 10000) {
     S.action.progress -= duration;

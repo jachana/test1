@@ -1,5 +1,11 @@
 // Instant spells (cast with mana) and the effects behind rune items.
 // Healing/damage scale with magic level and character level, like Tibia.
+//
+// The two casters were a strict subset of each other — the druid had every
+// sorcerer spell except sudden death, energy wave and its own name — so there
+// was no reason to pick one. They split on element now, as they do in the real
+// game: the sorcerer takes fire and energy and hits hardest, the druid takes
+// ice, gets Mass Healing, and multiplies every heal it casts.
 export const SPELLS = {
   // -------------------------------------------------------------- healing
   light_healing: {
@@ -36,22 +42,22 @@ export const SPELLS = {
   },
   flame_strike: {
     id: 'flame_strike', name: 'Flame Strike', words: 'exori flam', kind: 'attack',
-    mana: 20, reqML: 0, reqLevel: 14, voc: ['sorcerer', 'druid', 'paladin'],
+    mana: 20, reqML: 0, reqLevel: 14, voc: ['sorcerer', 'paladin'],
     base: 15, perML: 4, cooldown: 2000,
   },
   fireball: {
     id: 'fireball', name: 'Fireball', words: 'adori flam', kind: 'attack',
-    mana: 60, reqML: 4, reqLevel: 27, voc: ['sorcerer', 'druid'],
+    mana: 60, reqML: 4, reqLevel: 27, voc: ['sorcerer'],
     base: 28, perML: 6.5, cooldown: 2000,
   },
   great_fireball: {
     id: 'great_fireball', name: 'Great Fireball', words: 'adori gran flam', kind: 'attack',
-    mana: 120, reqML: 12, reqLevel: 30, voc: ['sorcerer', 'druid'],
+    mana: 120, reqML: 12, reqLevel: 30, voc: ['sorcerer'],
     base: 50, perML: 10, cooldown: 2000,
   },
   explosion: {
     id: 'explosion', name: 'Explosion', words: 'adevo mas hur', kind: 'attack',
-    mana: 170, reqML: 16, reqLevel: 31, voc: ['sorcerer', 'druid'],
+    mana: 170, reqML: 16, reqLevel: 31, voc: ['sorcerer'],
     base: 75, perML: 13, cooldown: 2000,
   },
   sudden_death: {
@@ -64,9 +70,40 @@ export const SPELLS = {
     mana: 170, reqML: 20, reqLevel: 38, voc: ['sorcerer'],
     base: 95, perML: 16, cooldown: 6000,
   },
+  ice_strike: {
+    id: 'ice_strike', name: 'Ice Strike', words: 'exori frigo', kind: 'attack',
+    mana: 20, reqML: 0, reqLevel: 15, voc: ['druid'],
+    base: 15, perML: 4, cooldown: 2000,
+  },
+  icicle: {
+    id: 'icicle', name: 'Icicle', words: 'adori frigo', kind: 'attack',
+    mana: 60, reqML: 4, reqLevel: 28, voc: ['druid'],
+    base: 28, perML: 6.5, cooldown: 2000,
+  },
+  avalanche: {
+    id: 'avalanche', name: 'Avalanche', words: 'adori mas frigo', kind: 'attack',
+    mana: 120, reqML: 12, reqLevel: 30, voc: ['druid'],
+    base: 50, perML: 10, cooldown: 2000,
+  },
+  strong_ice_wave: {
+    id: 'strong_ice_wave', name: 'Strong Ice Wave', words: 'exevo gran frigo hur', kind: 'attack',
+    mana: 170, reqML: 20, reqLevel: 40, voc: ['druid'],
+    base: 95, perML: 16, cooldown: 6000,
+  },
+  eternal_winter: {
+    id: 'eternal_winter', name: 'Eternal Winter', words: 'exevo gran mas frigo', kind: 'attack',
+    mana: 1050, reqML: 30, reqLevel: 60, voc: ['druid'],
+    base: 350, perML: 45, cooldown: 12000,
+  },
+  mass_healing: {
+    id: 'mass_healing', name: 'Mass Healing', words: 'exura gran mas res', kind: 'heal',
+    mana: 150, reqML: 8, reqLevel: 36, voc: ['druid'],
+    base: 100, perML: 16, cooldown: 1000,
+  },
+
   ultimate_explosion: {
     id: 'ultimate_explosion', name: 'Ultimate Explosion', words: 'exevo gran mas vis', kind: 'attack',
-    mana: 1050, reqML: 30, reqLevel: 60, voc: ['sorcerer', 'druid'],
+    mana: 1050, reqML: 30, reqLevel: 60, voc: ['sorcerer'],
     base: 350, perML: 45, cooldown: 12000,
   },
 };

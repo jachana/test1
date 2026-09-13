@@ -132,3 +132,57 @@ test('no hunting ground is dead content', () => {
   assert.deepEqual(dead.map((a) => a.id), [],
     `dead content — never a top-two choice for experience or gold at any level: ${dead.map((a) => a.name).join(', ')}`);
 });
+
+test('a rune you cannot pay for is a rune you wait for', async () => {
+  const { startIdle } = await import('../src/systems/idle.js');
+  const { count: held } = await import('../src/systems/inventory.js');
+
+  setState(createState('Runes'));
+  S.char.exp = 4200;
+  S.char.level = 8;
+  chooseVocation('sorcerer');
+  S.char.level = 60;
+  S.skills.runecrafting.level = 50;
+  S.skills.magic.level = 30;
+  S.inventory = [];
+  addItem('blank_rune', 200);
+  addItem('ham', 20);
+  S.char.mana = 0;
+
+  assert.ok(startIdle('runecrafting', 'rune_sudden_death'), 'could not start');
+  // A sudden death rune costs 985 mana. No vocation regenerates that inside one
+  // action, so this used to cancel itself on the first completion and an
+  // overnight session made a handful of runes and then stopped.
+  for (let i = 0; i < 60 * 60 * 10 * 3; i++) tick(100);
+
+  assert.ok(S.action, 'stopped crafting instead of waiting for mana');
+  assert.ok(held('rune_sudden_death') > 0, `waited forever without crafting anything`);
+  assert.ok(held('blank_rune') < 200, 'never consumed a blank rune');
+});
+
+test('the sorcerer and the druid are no longer the same vocation', async () => {
+  const { castValue } = await import('../src/systems/player.js');
+  const { SPELLS, spellsFor } = await import('../src/data/spells.js');
+
+  const cast = (voc, spell) => {
+    setState(createState('Split'));
+    S.char.exp = 4200;
+    S.char.level = 8;
+    chooseVocation(voc);
+    S.char.level = 60;
+    S.skills.magic.level = 40;
+    return castValue(spell);
+  };
+
+  // The druid used to hold every sorcerer spell but three, with an identical
+  // stat block — a strictly worse sorcerer, so nobody had a reason to pick it.
+  const sorcererOnly = spellsFor('sorcerer').filter((s) => !s.voc.includes('druid'));
+  const druidOnly = spellsFor('druid').filter((s) => !s.voc.includes('sorcerer'));
+  assert.ok(sorcererOnly.length >= 4, 'the sorcerer has nothing of its own');
+  assert.ok(druidOnly.length >= 4, 'the druid has nothing of its own');
+
+  assert.ok(cast('sorcerer', SPELLS.light_healing) < cast('druid', SPELLS.light_healing),
+    'the druid does not heal for more');
+  assert.ok(cast('sorcerer', SPELLS.great_fireball) > cast('druid', SPELLS.avalanche),
+    'the sorcerer does not hit for more');
+});

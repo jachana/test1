@@ -6,10 +6,9 @@ import { formatNumber, formatWeight } from '../../core/util.js';
 import {
   addGold, capacity, count, equip, inventoryView, removeItem, totalWeight,
 } from '../../systems/inventory.js';
-import { eat, heal, restoreMana, maxHp, skillLevel } from '../../systems/player.js';
+import { eat, heal, restoreMana, maxHp, skillLevel, castValue } from '../../systems/player.js';
 import { SPELLS, canCast } from '../../data/spells.js';
 import { compareEquip, isUpgrade, VERDICT_LABEL } from '../../systems/compare.js';
-import { spellHit } from '../../core/formulas.js';
 
 export function inventoryView_({ rerender }) {
   const updates = [];
@@ -50,12 +49,12 @@ export function inventoryView_({ rerender }) {
       if (spell.kind === 'heal') {
         if (S.char.hp >= maxHp()) { pushLog('You are already at full health.', 'info'); return; }
         if (removeItem(item.id, 1)) {
-          const amount = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
+          const amount = castValue(spell);
           pushLog(`You use ${item.name.toLowerCase()} (+${heal(amount)} hp).`, 'good');
         }
       } else if (S.combat && S.combat.respawn <= 0) {
         if (removeItem(item.id, 1)) {
-          const amount = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
+          const amount = castValue(spell);
           S.combat.hp -= amount;
           S.combat.lastPlayerHit = { amount, spell: spell.name };
           pushLog(`You use ${item.name.toLowerCase()} for ${amount} damage.`, 'info');

@@ -3,7 +3,7 @@ import { SKILLS, MAX_SKILL_LEVEL } from '../data/skills.js';
 import { VOCATIONS, CHOOSABLE, VOCATION_LEVEL, canChooseVocation } from '../data/vocations.js';
 import { getItem } from '../data/items.js';
 import {
-  expForLevel, levelForExp, maxHealth, maxMana, triesToAdvance, RESTING_SPEEDUP,
+  expForLevel, levelForExp, maxHealth, maxMana, spellHit, triesToAdvance, RESTING_SPEEDUP,
 } from '../core/formulas.js';
 import { clamp, ratio } from '../core/util.js';
 import { emit } from '../core/bus.js';
@@ -104,6 +104,20 @@ export function gainSkill(skillId, tries = 1) {
     emit('skillup', { skillId, level: skill.level });
     need = triesToAdvance(skillId, skill.level, S.char.vocation);
   }
+}
+
+/**
+ * What a spell actually does for this character, vocation included.
+ *
+ * Five call sites used to compute this inline straight from spellHit, which is
+ * precisely why the sorcerer and the druid were the same vocation with
+ * different spell names. Anything that resolves a spell or a rune goes through
+ * here so the vocation is never accidentally left out.
+ */
+export function castValue(spell) {
+  const voc = vocation();
+  const power = spell.kind === 'heal' ? (voc.healPower ?? 1) : (voc.spellPower ?? 1);
+  return Math.max(1, Math.round(spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level) * power));
 }
 
 /** Spending mana is what trains Magic Level in Tibia. */
