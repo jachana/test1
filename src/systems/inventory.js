@@ -110,46 +110,74 @@ export function equipped(slot) {
   return id ? getItem(id) : null;
 }
 
+/**
+ * Everything the worn set adds up to, computed once per change of gear.
+ *
+ * These five totals each walked all nine slots, and skillBonus is behind every
+ * skillLevel() call — which combat makes several times a swing and the hunting
+ * guide makes inside a loop over a creature's whole damage range. Nine lookups
+ * times five totals times all of that, for numbers that change when you press
+ * Equip.
+ *
+ * Keyed on the equipment itself rather than invalidated by hand, because
+ * compare.js swaps gear in and straight back out to measure it: a key that
+ * follows the slots cannot go stale behind that, and a flag would.
+ */
+let wornKey = null;
+let wornCache = null;
+
+function worn() {
+  const e = S.equipment;
+  const key = `${e.helmet}|${e.amulet}|${e.weapon}|${e.shield}|${e.armour}|${e.ring}|${e.legs}|${e.boots}|${e.ammo}`;
+  if (wornCache && wornKey === key) return wornCache;
+
+  const summary = { armour: 0, regen: 0, haste: 0, skills: null, shieldDef: 0 };
+  let skills = null;
+  for (const id of Object.values(e)) {
+    if (!id) continue;
+    const item = getItem(id);
+    summary.armour += item.arm ?? 0;
+    summary.regen += item.regenBonus ?? 0;
+    summary.haste += item.haste ?? 0;
+    if (item.skillBonus) {
+      skills ??= {};
+      for (const [skill, value] of Object.entries(item.skillBonus)) {
+        skills[skill] = (skills[skill] ?? 0) + value;
+      }
+    }
+  }
+  summary.skills = skills;
+  const shield = e.shield ? getItem(e.shield) : null;
+  const weapon = e.weapon ? getItem(e.weapon) : null;
+  summary.shieldDef = (shield?.def ?? 0) + (weapon?.def ?? 0) * 0.5;
+
+  wornKey = key;
+  wornCache = summary;
+  return summary;
+}
+
 /** Aggregated armour from every worn piece. */
 export function totalArmour() {
-  let armour = 0;
-  for (const id of Object.values(S.equipment)) {
-    if (id) armour += getItem(id).arm ?? 0;
-  }
-  return armour;
+  return worn().armour;
 }
 
 export function shieldDefence() {
-  const shield = equipped('shield');
-  const weapon = equipped('weapon');
-  return (shield?.def ?? 0) + (weapon?.def ?? 0) * 0.5;
+  return worn().shieldDef;
 }
 
 /** Skill bonuses granted by equipment (rings, etc.). */
 export function skillBonus(skillId) {
-  let bonus = 0;
-  for (const id of Object.values(S.equipment)) {
-    if (!id) continue;
-    const sb = getItem(id).skillBonus;
-    if (sb) bonus += (sb.all ?? 0) + (sb[skillId] ?? 0);
-  }
-  return bonus;
+  const { skills } = worn();
+  if (!skills) return 0;
+  return (skills.all ?? 0) + (skills[skillId] ?? 0);
 }
 
 export function regenBonus() {
-  let bonus = 0;
-  for (const id of Object.values(S.equipment)) {
-    if (id) bonus += getItem(id).regenBonus ?? 0;
-  }
-  return bonus;
+  return worn().regen;
 }
 
 export function hasteBonus() {
-  let haste = 0;
-  for (const id of Object.values(S.equipment)) {
-    if (id) haste += getItem(id).haste ?? 0;
-  }
-  return haste;
+  return worn().haste;
 }
 
 /** Sorted view of the backpack for the UI. */

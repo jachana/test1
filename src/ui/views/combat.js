@@ -188,13 +188,36 @@ export function combatView({ rerender }) {
   // ------------------------------------------------------------- the guide
   const guideBody = el('div', { class: 'stack tight' });
   const guide = card('📖 Hunting Guide', guideBody);
+
+  /**
+   * Everything the guide's numbers are computed from.
+   *
+   * The panel is thirty-odd elements and none of it changes between two blows
+   * of the same fight, but it was rebuilt on every 100ms tick — nearly four
+   * hundred elements a second for a table that moves when you level up or
+   * change your gear. Rebuild it when one of those actually happens.
+   */
+  const guideSignature = (area) => [
+    area?.id,
+    S.char.level,
+    S.settings.attackMode,
+    S.settings.attackSpell,
+    Object.values(S.equipment).join(','),
+    Object.values(S.skills).map((s) => s.level).join(','),
+  ].join('|');
+
+  let lastGuideSig = null;
   updates.push(() => {
     const area = S.action?.type === 'combat' ? AREAS.find((a) => a.id === S.action.areaId) : null;
     if (!area) {
       guide.style.display = 'none';
+      lastGuideSig = null;
       return;
     }
     guide.style.display = '';
+    const sig = guideSignature(area);
+    if (sig === lastGuideSig) return;
+    lastGuideSig = sig;
     const e = areaEstimate(area);
     const rows = e.parts
       .slice()

@@ -1,4 +1,4 @@
-import { el, bar, card, button, itemGlyph } from '../dom.js';
+import { el, bar, card, button, itemGlyph, kvList } from '../dom.js';
 import { S } from '../../core/state.js';
 import { SKILLS } from '../../data/skills.js';
 import { VOCATIONS, VOCATION_LEVEL, canChooseVocation } from '../../data/vocations.js';
@@ -43,7 +43,7 @@ export function characterView({ rerender }) {
 
   // -------------------------------------------------------- equipment card
   const slotGrid = el('div', { class: 'slot-grid' });
-  const derived = el('div', { class: 'derived' });
+  const derived = kvList();
   const renderSlots = () => {
     slotGrid.replaceChildren(...EQUIP_SLOTS.map((slot) => {
       const id = S.equipment[slot.id];
@@ -63,49 +63,64 @@ export function characterView({ rerender }) {
 
   updates.push(() => {
     const c = combatStats();
-    derived.replaceChildren(...[
+    derived.set([
       ['Weapon', `${c.profile.icon} ${c.profile.name}`],
-      [`${SKILLS[c.profile.skill].name}`, `${c.skill}`],
+      [SKILLS[c.profile.skill].name, `${c.skill}`],
       ['Max hit', `${c.maxHit}`],
       ['Attack every', `${(c.attackSpeed / 1000).toFixed(1)}s`],
       ['Armor', `${c.armour}`],
       ['Defence', `${c.defence}`],
       ['Capacity', `${Math.floor(capacity() - totalWeight())} / ${capacity()} oz`],
-    ].map(([k, v]) => el('div', { class: 'kv' }, [el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v })])));
+    ]);
   });
 
   const equipment = card('⚔️ Equipment', [slotGrid, derived]);
 
   // ------------------------------------------------------------ skills card
+  // The set of skills never changes, so build the blocks once and write the
+  // level and the bar into them. Rebuilding twelve icon/name/level/bar groups
+  // ten times a second was the other half of this page's element churn.
   const skillRows = el('div', { class: 'skill-rows' });
-  updates.push(() => {
-    skillRows.replaceChildren(...Object.entries(SKILLS).map(([id, def]) => {
-      const s = S.skills[id];
-      const need = triesToAdvance(id, s.level, S.char.vocation);
-      const bonus = skillLevel(id) - s.level;
-      const row = el('div', { class: 'skill-row' }, [
+  const skillWidgets = Object.entries(SKILLS).map(([id, def]) => {
+    const level = el('span', { class: 'skill-level' });
+    const progress = bar(0, { className: def.cat });
+    const block = el('div', { class: 'skill-block' }, [
+      el('div', { class: 'skill-row' }, [
         el('span', { class: 'skill-icon', text: def.icon }),
         el('span', { class: 'skill-name', text: def.name }),
-        el('span', { class: 'skill-level', text: bonus ? `${s.level} (+${bonus})` : `${s.level}` }),
-      ]);
-      const b = bar(need === Infinity ? 1 : s.points / need, {
-        className: def.cat,
-        label: need === Infinity ? 'maxed' : `${formatNumber(s.points)} / ${formatNumber(need)} ${def.unit}`,
-      });
-      return el('div', { class: 'skill-block' }, [row, b]);
-    }));
+        level,
+      ]),
+      progress,
+    ]);
+    return { id, level, progress, block };
+  });
+  skillRows.replaceChildren(...skillWidgets.map((w) => w.block));
+
+  updates.push(() => {
+    for (const w of skillWidgets) {
+      const s = S.skills[w.id];
+      const need = triesToAdvance(w.id, s.level, S.char.vocation);
+      const bonus = skillLevel(w.id) - s.level;
+      const text = bonus ? `${s.level} (+${bonus})` : `${s.level}`;
+      if (w.level.textContent !== text) w.level.textContent = text;
+      w.progress.setFill(
+        need === Infinity ? 1 : s.points / need,
+        need === Infinity ? 'maxed' : `${formatNumber(s.points)} / ${formatNumber(need)} ${SKILLS[w.id].unit}`,
+      );
+    }
   });
 
-  const stats = el('div', { class: 'derived' });
+  const stats = kvList();
   updates.push(() => {
-    stats.replaceChildren(...[
+    stats.set([
       ['Monsters killed', formatNumber(totalKills())],
       ['Deaths', String(S.stats.deaths)],
+      ['Rare drops', formatNumber(S.stats.rareDrops ?? 0)],
       ['Gold earned', formatNumber(S.stats.goldEarned)],
       ['Actions completed', formatNumber(S.stats.actionsDone)],
       ['Items gathered', formatNumber(S.stats.itemsGathered)],
       ['Time played', formatDuration(S.stats.playtimeMs)],
-    ].map(([k, v]) => el('div', { class: 'kv' }, [el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v })])));
+    ]);
   });
 
   const vocationCardNode = canChooseVocation(char)

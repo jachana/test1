@@ -39,6 +39,41 @@ export function bar(ratio, { className = '', label = '' } = {}) {
   return wrap;
 }
 
+/**
+ * A label/value list that is built once and written into, not rebuilt.
+ *
+ * `replaceChildren` on a list of key/value rows reads well and was most of what
+ * the character page did: three of these, twenty-odd rows between them, torn
+ * down and recreated ten times a second for values that change once a minute.
+ * Pass `[[label, value], ...]` to `set`; only the text that actually differs is
+ * touched, and the DOM is only rebuilt if the number of rows changes.
+ */
+export function kvList({ class: cls = 'derived' } = {}) {
+  const node = el('div', { class: cls });
+  const keys = [];
+  const values = [];
+
+  node.set = (rows) => {
+    if (rows.length !== keys.length) {
+      keys.length = 0;
+      values.length = 0;
+      node.replaceChildren(...rows.map(([k, v]) => {
+        const key = el('span', { class: 'k', text: String(k) });
+        const value = el('span', { class: 'v', text: String(v) });
+        keys.push(key);
+        values.push(value);
+        return el('div', { class: 'kv' }, [key, value]);
+      }));
+      return;
+    }
+    rows.forEach(([k, v], i) => {
+      if (keys[i].textContent !== String(k)) keys[i].textContent = String(k);
+      if (values[i].textContent !== String(v)) values[i].textContent = String(v);
+    });
+  };
+  return node;
+}
+
 export function card(title, children, props = {}) {
   return el('section', { class: `card ${props.class ?? ''}` }, [
     title ? el('h3', { class: 'card-title', html: title }) : null,

@@ -324,8 +324,14 @@ export function mountShell(root) {
   on('potion', () => play('potion'));
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) save();
-    else setSound(soundEnabled()); // resumes the AudioContext the tab suspended
+    if (document.hidden) {
+      save();
+      return;
+    }
+    // The engine stops emitting 'tick' while hidden, so everything on screen is
+    // as stale as the time away. Catch it all up in one go.
+    setSound(soundEnabled()); // also resumes the AudioContext the tab suspended
+    shell.update();
   });
 
   rerender();

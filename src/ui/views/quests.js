@@ -10,18 +10,38 @@ import { stopAction } from '../../systems/combat.js';
 export function questsView({ rerender }) {
   const updates = [];
 
-  const header = el('div', { class: 'row space' });
+  const headerCount = el('div', { class: 'big-level' });
+  const headerReady = el('span', { class: 'tag' });
+  const header = el('div', { class: 'row space' }, [headerCount, headerReady]);
   updates.push(() => {
     const s = questStatus();
-    header.replaceChildren(
-      el('div', { class: 'big-level', text: `📜 Quests ${s.done} / ${s.total}` }),
-      el('span', { class: 'tag', text: `${s.available} ready` }),
-    );
+    const count = `📜 Quests ${s.done} / ${s.total}`;
+    const ready = `${s.available} ready`;
+    if (headerCount.textContent !== count) headerCount.textContent = count;
+    if (headerReady.textContent !== ready) headerReady.textContent = ready;
   });
 
   const list = el('div', { class: 'action-list' });
 
+  /**
+   * The running quest's progress bar, looked up by quest id.
+   *
+   * This used to be one `updates.push` per quest inside renderList — sixteen
+   * closures, and renderList runs again every time you pick a reward chest, so
+   * the tick loop grew by sixteen more each click and never shrank. The map is
+   * replaced wholesale on each render and one closure below reads from it.
+   */
+  const progressBars = new Map();
+  updates.push(() => {
+    if (S.action?.type !== 'quest') return;
+    const quest = getQuest(S.action.questId);
+    const progress = progressBars.get(S.action.questId);
+    if (!quest || !progress) return;
+    progress.setFill(S.action.progress / quest.ms, `${formatDuration(quest.ms - S.action.progress)} left`);
+  });
+
   const renderList = () => {
+    progressBars.clear();
     list.replaceChildren(...QUESTS.map((quest) => {
       const done = isDone(quest.id);
       const problem = questProblem(quest);
@@ -56,10 +76,7 @@ export function questsView({ rerender }) {
         : (chosen ? el('div', { class: 'muted small', text: `Chest chosen: ${getItem(chosen).name}` }) : null);
 
       const progressBar = bar(0, { className: 'action' });
-      updates.push(() => {
-        if (S.action?.type !== 'quest' || S.action.questId !== quest.id) return;
-        progressBar.setFill(S.action.progress / quest.ms, `${formatDuration(quest.ms - S.action.progress)} left`);
-      });
+      progressBars.set(quest.id, progressBar);
 
       const go = button(running ? 'Turn back' : (done ? 'Completed' : 'Set out'), () => {
         if (running) stopAction(`You turn back from ${quest.name}.`);

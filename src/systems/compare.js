@@ -43,6 +43,38 @@ function asIfWearing(itemId, slot, fn) {
   }
 }
 
+const allSkillBonuses = () => Object.fromEntries(Object.keys(SKILLS).map((id) => [id, skillBonus(id)]));
+
+/**
+ * Comparisons, cached against everything they depend on.
+ *
+ * `isUpgrade` runs for every tile in the backpack each time the grid is drawn,
+ * and each call swapped gear in and out to measure it. The key covers the state
+ * a comparison actually reads; when any of it moves, every entry is stale, so
+ * the whole map is dropped rather than pruned.
+ */
+const comparisons = new Map();
+let comparisonKey = null;
+
+function stateKey() {
+  return [
+    Object.values(S.equipment).join(','),
+    S.char.level,
+    S.settings.attackMode,
+    Object.values(S.skills).map((s) => s.level).join(','),
+  ].join('|');
+}
+
+function fromCache(itemId) {
+  const key = stateKey();
+  if (key !== comparisonKey) {
+    comparisons.clear();
+    comparisonKey = key;
+    return null;
+  }
+  return comparisons.get(itemId) ?? null;
+}
+
 const STATS = [
   { key: 'maxHit', label: 'Max hit' },
   { key: 'armour', label: 'Armor' },
@@ -66,8 +98,14 @@ export function compareEquip(itemId) {
   const currentId = S.equipment[slot];
   if (currentId === itemId) return { slot, equipped: true, verdict: 'equipped', deltas: [] };
 
+  const cached = fromCache(itemId);
+  if (cached) return cached;
+
   const before = snapshot();
   const after = asIfWearing(itemId, slot, snapshot);
+
+  const beforeSkills = allSkillBonuses();
+  const afterSkills = asIfWearing(itemId, slot, allSkillBonuses);
 
   const deltas = [];
   for (const { key, label } of STATS) {
@@ -87,8 +125,12 @@ export function compareEquip(itemId) {
   if (after.regen !== before.regen) {
     deltas.push({ label: 'Regeneration', from: before.regen, to: after.regen, change: after.regen - before.regen });
   }
+  // One swap for all twelve skills, not one swap each: asIfWearing writes to
+  // S.equipment, which is the key the worn-gear cache hangs off, so a swap per
+  // skill threw that cache away twelve times per comparison — and this runs for
+  // every tile in the backpack whenever the grid is drawn.
   for (const skillId of Object.keys(SKILLS)) {
-    const change = asIfWearing(itemId, slot, () => skillBonus(skillId)) - skillBonus(skillId);
+    const change = afterSkills[skillId] - beforeSkills[skillId];
     if (change) deltas.push({ label: SKILLS[skillId].name, from: null, to: null, change });
   }
 
@@ -99,7 +141,7 @@ export function compareEquip(itemId) {
   else if (ups) verdict = 'better';
   else if (downs) verdict = 'worse';
 
-  return {
+  const result = {
     slot,
     verdict,
     deltas,
@@ -110,6 +152,8 @@ export function compareEquip(itemId) {
       ? `Trains ${after.skillName} (${after.skillLevel}) instead of ${before.skillName} (${before.skillLevel})`
       : null,
   };
+  comparisons.set(itemId, result);
+  return result;
 }
 
 /** True when picking this up would be an outright improvement. */

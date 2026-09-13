@@ -1,7 +1,7 @@
 import { el, bar, card, button } from '../dom.js';
 import { S } from '../../core/state.js';
 import { SKILLS } from '../../data/skills.js';
-import { ACTIONS } from '../../data/actions.js';
+import { ACTIONS, getAction } from '../../data/actions.js';
 import { getItem } from '../../data/items.js';
 import { triesToAdvance } from '../../core/formulas.js';
 import { formatNumber } from '../../core/util.js';
@@ -14,20 +14,35 @@ export function skillView(skillId, { rerender }) {
   const def = SKILLS[skillId];
   const updates = [];
 
-  const header = el('div', { class: 'row space' });
+  const headerLevel = el('div', { class: 'big-level' });
+  const headerTries = el('span', { class: 'muted small' });
+  const header = el('div', { class: 'row space' }, [headerLevel, headerTries]);
   const progress = bar(0, { className: def.cat });
   updates.push(() => {
     const s = S.skills[skillId];
     const need = triesToAdvance(skillId, s.level, S.char.vocation);
-    header.replaceChildren(
-      el('div', { class: 'big-level', text: `${def.icon} ${def.name} ${s.level}` }),
-      el('span', { class: 'muted small', text: `${formatNumber(s.totalTries)} total ${def.unit}` }),
-    );
+    const level = `${def.icon} ${def.name} ${s.level}`;
+    const tries = `${formatNumber(s.totalTries)} total ${def.unit}`;
+    if (headerLevel.textContent !== level) headerLevel.textContent = level;
+    if (headerTries.textContent !== tries) headerTries.textContent = tries;
     progress.setFill(need === Infinity ? 1 : s.points / need, need === Infinity ? 'maxed' : `${formatNumber(s.points)} / ${formatNumber(need)} ${def.unit}`);
+  });
+
+  // One closure for the running action, not one per action pushed on every
+  // render — the same leak the quest log had, where the tick loop grew by a
+  // closure per row each time the list was rebuilt.
+  const progressBars = new Map();
+  updates.push(() => {
+    if (S.action?.type !== 'idle' || S.action.skill !== skillId) return;
+    const action = getAction(skillId, S.action.actionId);
+    const progressBar = progressBars.get(S.action.actionId);
+    if (!action || !progressBar) return;
+    progressBar.setFill(S.action.progress / actionDuration(skillId, action), '');
   });
 
   const rows = el('div', { class: 'action-list' });
   const renderRows = () => {
+    progressBars.clear();
     rows.replaceChildren(...ACTIONS[skillId].map((action) => {
       const locked = skillLevel(skillId) < action.req;
       const active = S.action?.type === 'idle' && S.action.skill === skillId && S.action.actionId === action.id;
@@ -53,11 +68,7 @@ export function skillView(skillId, { rerender }) {
         rerender();
       }, { class: active ? 'btn-danger' : 'btn-primary', disabled: locked || (!active && !!problem) });
 
-      updates.push(() => {
-        const running = S.action?.type === 'idle' && S.action.skill === skillId && S.action.actionId === action.id;
-        if (!running) return;
-        progressBar.setFill(S.action.progress / actionDuration(skillId, action), '');
-      });
+      progressBars.set(action.id, progressBar);
 
       return el('div', { class: `action-row${active ? ' active' : ''}${locked ? ' locked' : ''}` }, [
         el('div', { class: 'action-main' }, [

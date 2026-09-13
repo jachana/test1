@@ -41,7 +41,11 @@ function frame() {
     sinceSave = 0;
     save();
   }
-  emit('tick');
+  // The simulation always runs; the repaint does not. Nobody is looking at a
+  // hidden tab, and 'tick' is what drives every bar, label and progress meter
+  // in the shell. The visibilitychange handler in the UI redraws on the way
+  // back in, so nothing is left stale.
+  if (!document.hidden) emit('tick');
 }
 
 export function startEngine() {
