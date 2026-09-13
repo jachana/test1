@@ -2,7 +2,9 @@ import { S, pushLog } from '../core/state.js';
 import { SKILLS, MAX_SKILL_LEVEL } from '../data/skills.js';
 import { VOCATIONS, CHOOSABLE, VOCATION_LEVEL, canChooseVocation } from '../data/vocations.js';
 import { getItem } from '../data/items.js';
-import { expForLevel, levelForExp, maxHealth, maxMana, triesToAdvance } from '../core/formulas.js';
+import {
+  expForLevel, levelForExp, maxHealth, maxMana, triesToAdvance, RESTING_SPEEDUP,
+} from '../core/formulas.js';
 import { clamp, ratio } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { count, removeItem, equipped, hasteBonus, regenBonus, skillBonus } from './inventory.js';
@@ -105,9 +107,6 @@ export function restoreMana(amount) {
 }
 
 // ------------------------------------------------------------------ regen/food
-
-/** Between fights you catch your breath, the way you would walking to the next spawn. */
-const RESTING_SPEEDUP = 4;
 
 export function regenTick(dt) {
   const voc = vocation();

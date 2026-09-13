@@ -3,7 +3,9 @@ import { getArea } from '../data/areas.js';
 import { getMonster } from '../data/monsters.js';
 import { SPELLS } from '../data/spells.js';
 import { getItem, slotOf } from '../data/items.js';
-import { maxHit, defenceValue, spellHit } from '../core/formulas.js';
+import {
+  applyArmour, blockChance, defenceValue, hitChance, maxHit, spellHit, RESPAWN_MS,
+} from '../core/formulas.js';
 import { clamp, pickWeighted, randInt, roll } from '../core/util.js';
 import { emit } from '../core/bus.js';
 import { addGold, addItem, count, removeItem, totalArmour, shieldDefence } from './inventory.js';
@@ -16,7 +18,6 @@ import { questGateFor } from '../data/quests.js';
 import { isUpgrade } from './compare.js';
 import { isDone } from './quests.js';
 
-const RESPAWN_MS = 1500;
 /** Dying this many times without a kill in between means the area is too hard. */
 const DEATH_STREAK_LIMIT = 3;
 
@@ -73,12 +74,6 @@ function spawn(area) {
   emit('combat:spawn', monster);
 }
 
-/** Armour soaks a random slice of the incoming blow, Tibia-style. */
-function applyArmour(damage, armour) {
-  if (armour <= 0) return damage;
-  return Math.max(0, damage - randInt(Math.floor(armour * 0.475), armour));
-}
-
 function playerAttack(monster) {
   const profile = weaponProfile();
   if (!profile.ok) {
@@ -93,8 +88,7 @@ function playerAttack(monster) {
   }
 
   const skill = skillLevel(profile.skill);
-  const hitChance = clamp(0.62 + (skill - monster.def) * 0.02, 0.35, 0.96);
-  if (!roll(hitChance)) {
+  if (!roll(hitChance(skill, monster.def))) {
     S.combat.lastPlayerHit = { amount: 0, miss: true };
     return;
   }
@@ -102,7 +96,7 @@ function playerAttack(monster) {
   const max = maxHit(profile.attack, skill, S.char.level, S.settings.attackMode);
   let damage = randInt(Math.max(1, Math.floor(max * 0.4)), max);
   damage += profile.elemDmg ? randInt(1, profile.elemDmg) : 0;
-  damage = Math.max(1, applyArmour(damage, monster.arm));
+  damage = applyArmour(damage, monster.arm, 1);
 
   S.combat.hp -= damage;
   S.combat.lastPlayerHit = { amount: damage, miss: false };
@@ -114,10 +108,9 @@ function playerAttack(monster) {
 function monsterAttack(monster) {
   const raw = randInt(monster.min, monster.max);
   const defence = defenceValue(skillLevel('shielding'), shieldDefence(), S.settings.attackMode);
-  const blockChance = clamp(defence / (defence + raw * 1.6), 0, 0.72);
 
   gainSkill('shielding', 1); // you train shielding by being attacked
-  if (roll(blockChance)) {
+  if (roll(blockChance(defence, raw))) {
     S.combat.lastMonsterHit = { amount: 0, blocked: true };
     return false;
   }
@@ -171,7 +164,7 @@ function castSpells(dt) {
   if (!spendMana(spell.mana)) return;
 
   const monster = getMonster(c.monsterId);
-  damage = Math.max(1, applyArmour(damage, Math.floor(monster.arm * 0.5)));
+  damage = applyArmour(damage, Math.floor(monster.arm * 0.5), 1);
   c.hp -= damage;
   c.lastPlayerHit = { amount: damage, spell: spell.name };
   emit('combat:spell', { spell, amount: damage, kind: 'attack' });

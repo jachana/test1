@@ -180,7 +180,10 @@ export function combatView({ rerender }) {
         ['Experience', `${formatNumber(e.expPerHour)} / hour`],
         ['Gold + loot', `${formatNumber(e.goldPerHour)} / hour`],
         ['Taking', `${e.incoming.toFixed(1)} damage / second`],
-        ['Supplies', e.potionsPerHour < 1 ? 'Food and resting cover it' : `~${Math.ceil(e.potionsPerHour)} strong health potions / hour`],
+        ['Supplies', e.potionsPerHour < 1
+          ? 'Food and resting cover it'
+          : `${Math.ceil(e.potionsPerHour)} × ${e.potion.name} / hour (${formatNumber(e.potionGoldPerHour)} gp)`],
+        ['Net gold', `${formatNumber(e.netGoldPerHour)} / hour after supplies`],
       ].map(([k, v]) => el('div', { class: 'kv' }, [
         el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v }),
       ]))),

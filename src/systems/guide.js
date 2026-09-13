@@ -1,32 +1,35 @@
 import { S } from '../core/state.js';
 import { getMonster } from '../data/monsters.js';
-import { getItem } from '../data/items.js';
+import { getItem, ITEMS } from '../data/items.js';
 import { SPELLS } from '../data/spells.js';
-import { sellPrice } from '../data/shops.js';
-import { maxHit, defenceValue, spellHit } from '../core/formulas.js';
-import { clamp } from '../core/util.js';
+import { buyPrice, sellPrice } from '../data/shops.js';
+import {
+  blockChance, defenceValue, expectedAfterArmour, hitChance, maxHit, spellHit,
+  RESPAWN_MS, RESTING_SPEEDUP,
+} from '../core/formulas.js';
 import { totalArmour, shieldDefence } from './inventory.js';
 import { maxHp, playerAttackInterval, skillLevel, vocation, weaponProfile } from './player.js';
 
-const RESPAWN_S = 1.5;
-// Mirrors of the random rolls in combat.js, averaged.
-const AVG_ROLL = 0.7; // randInt(0.4·max, max)
-const AVG_SOAK = 0.7375; // randInt(0.475·armour, armour)
-const RESTING_SPEEDUP = 4; // matches player.regenTick
+const RESPAWN_S = RESPAWN_MS / 1000;
 
-/** Damage per second you deal to one creature, weapon plus auto-cast spell. */
+/**
+ * Damage per second you deal to one creature, weapon plus auto-cast spell.
+ *
+ * Every number here comes from the same helpers combat.js rolls against, so
+ * the estimate tracks the fight instead of drifting away from it.
+ */
 function outgoingDps(monster) {
   const profile = weaponProfile();
   const skill = skillLevel(profile.skill);
-  const hitChance = clamp(0.62 + (skill - monster.def) * 0.02, 0.35, 0.96);
   const max = maxHit(profile.attack, skill, S.char.level, S.settings.attackMode);
-  const perSwing = hitChance * Math.max(1, max * AVG_ROLL - monster.arm * AVG_SOAK);
+  const lo = Math.max(1, Math.floor(max * 0.4));
+  const perSwing = hitChance(skill, monster.def) * expectedAfterArmour(lo, max, monster.arm, 1);
   let dps = perSwing / (playerAttackInterval() / 1000);
 
   const spell = SPELLS[S.settings.attackSpell];
   if (spell) {
     const hit = spellHit(spell.base, spell.perML, skillLevel('magic'), S.char.level);
-    const soaked = Math.max(1, hit - monster.arm * 0.5 * AVG_SOAK);
+    const soaked = expectedAfterArmour(hit, hit, Math.floor(monster.arm * 0.5), 1);
     // Only counts while you can pay for it; mana regen sets the real ceiling.
     const manaPerSecond = (vocation().manaRegen.amount + Math.floor(S.char.level / 15)) / vocation().manaRegen.seconds;
     const castsPerSecond = Math.min(1000 / spell.cooldown, manaPerSecond / spell.mana);
@@ -35,13 +38,18 @@ function outgoingDps(monster) {
   return dps;
 }
 
-/** Damage per second the creature deals to you, after blocks and armour. */
-function incomingDps(monster) {
-  const avgRaw = (monster.min + monster.max) / 2;
+/** Damage that gets through per blow the creature lands, after blocks and armour. */
+function damagePerBlow(monster) {
   const defence = defenceValue(skillLevel('shielding'), shieldDefence(), S.settings.attackMode);
-  const blockChance = clamp(defence / (defence + avgRaw * 1.6), 0, 0.72);
-  const perHit = (1 - blockChance) * Math.max(0, avgRaw - totalArmour() * AVG_SOAK);
-  return perHit / (monster.speed / 1000);
+  const armour = totalArmour();
+
+  // Block chance depends on the size of the individual blow, so average across
+  // the creature's whole damage range rather than around its midpoint.
+  let perHit = 0;
+  for (let raw = monster.min; raw <= monster.max; raw++) {
+    perHit += (1 - blockChance(defence, raw)) * expectedAfterArmour(raw, raw, armour);
+  }
+  return perHit / (monster.max - monster.min + 1);
 }
 
 /** Average gold from one kill, counting loot you could sell. */
@@ -59,14 +67,19 @@ export function monsterEstimate(monsterId) {
   const dps = outgoingDps(monster);
   const ttk = monster.hp / Math.max(0.1, dps);
   const cycle = ttk + RESPAWN_S;
-  const taken = incomingDps(monster);
+  // A creature's first blow lands a full interval after it spawns, and nothing
+  // hits you during the respawn gap — so the sustained rate is blows-per-fight
+  // spread over the whole cycle, not a continuous stream.
+  const perBlow = damagePerBlow(monster);
+  const blowsPerFight = Math.max(0, ttk / (monster.speed / 1000) - 0.5);
+  const damagePerKill = perBlow * blowsPerFight;
   return {
     monster,
     ttk,
     expPerHour: (3600 / cycle) * monster.exp,
     goldPerHour: (3600 / cycle) * killValue(monster),
-    incoming: taken,
-    damagePerKill: taken * ttk,
+    incoming: damagePerKill / cycle,
+    damagePerKill,
   };
 }
 
@@ -78,20 +91,31 @@ function regenPerSecond(ttk) {
   const voc = vocation();
   const perSecond = (voc.hpRegen.amount + Math.floor(S.char.level / 15)) / voc.hpRegen.seconds;
   const cycle = ttk + RESPAWN_S;
-  const restingShare = (ttk + RESPAWN_S * RESTING_SPEEDUP) / cycle;
-  return perSecond * restingShare;
+  return perSecond * ((ttk + RESPAWN_S * RESTING_SPEEDUP) / cycle);
 }
 
-const VERDICTS = [
-  { id: 'safe', label: 'Safe', note: 'You out-heal this place.' },
-  { id: 'comfortable', label: 'Comfortable', note: 'Bring some potions and you can stay all night.' },
-  { id: 'risky', label: 'Risky', note: 'Watch your supplies — this bites back.' },
-  { id: 'deadly', label: 'Deadly', note: 'You will die here. Come back stronger.' },
-];
+/** The strongest health potion this character is allowed to drink. */
+export function potionForLevel(level = S.char.level) {
+  if (level >= (ITEMS.great_health_potion.reqLevel ?? 80)) return ITEMS.great_health_potion;
+  if (level >= (ITEMS.strong_health_potion.reqLevel ?? 50)) return ITEMS.strong_health_potion;
+  return ITEMS.health_potion;
+}
+
+const VERDICTS = {
+  safe: { id: 'safe', label: 'Safe', note: 'You out-heal this place.' },
+  comfortable: { id: 'comfortable', label: 'Comfortable', note: 'Supplies are pocket change here.' },
+  risky: { id: 'risky', label: 'Risky', note: 'You are hunting to pay for the potions you drink.' },
+  deadly: { id: 'deadly', label: 'Deadly', note: 'This costs more than it pays. Come back stronger.' },
+};
 
 /**
  * Everything the hunting-guide panel needs for one area, computed from the
  * character as it stands right now: gear, skills, stance and auto-cast.
+ *
+ * The verdict is about affordability, not regeneration. Potions are what
+ * actually keep an idle hunter alive, so an area is survivable when its gold
+ * covers its supply bill — judging on regeneration alone declared the entire
+ * endgame permanently deadly at every level.
  */
 export function areaEstimate(area) {
   const totalWeight = area.spawns.reduce((sum, [, w]) => sum + w, 0);
@@ -103,20 +127,31 @@ export function areaEstimate(area) {
   const avgTtk = parts.reduce((sum, p) => sum + p.ttk * p.share, 0);
 
   const net = incoming - regenPerSecond(avgTtk);
-  const timeToDie = net <= 0 ? Infinity : maxHp() / net;
-  let verdict = VERDICTS[0];
-  if (net > 0) {
-    if (timeToDie > avgTtk * 8) verdict = VERDICTS[1];
-    else if (timeToDie > avgTtk * 2.5) verdict = VERDICTS[2];
-    else verdict = VERDICTS[3];
+  const potion = potionForLevel();
+  const potionsPerHour = (Math.max(0, net) * 3600) / potion.heal;
+  const potionGoldPerHour = potionsPerHour * buyPrice(potion.id);
+
+  const biggestHit = Math.max(...area.spawns.map(([id]) => getMonster(id).max));
+  let verdict = VERDICTS.safe;
+  if (maxHp() < biggestHit) verdict = VERDICTS.deadly; // one blow could end you
+  else if (net > 0) {
+    if (potionGoldPerHour >= goldPerHour) verdict = VERDICTS.deadly;
+    else if (potionGoldPerHour >= goldPerHour * 0.25) verdict = VERDICTS.risky;
+    else verdict = VERDICTS.comfortable;
   }
 
-  // Potions needed per hour to cover what regeneration cannot.
-  const deficitPerHour = Math.max(0, net) * 3600;
-
   return {
-    area, parts, expPerHour, goldPerHour, incoming, avgTtk, verdict, timeToDie,
-    potionsPerHour: deficitPerHour / 175, // a strong health potion's worth
+    area,
+    parts,
+    expPerHour,
+    goldPerHour,
+    netGoldPerHour: goldPerHour - potionGoldPerHour,
+    incoming,
+    avgTtk,
+    verdict,
+    potion,
+    potionsPerHour,
+    potionGoldPerHour,
     notableDrops: notableDrops(area),
   };
 }
