@@ -20,7 +20,7 @@ import { dirname } from 'node:path';
 
 import {
   createGame, addPlayer, rejoin, removePlayer, startGame, askNext, submitAnswer,
-  reveal, showStandings, addPrompt, publicState, timeLeft, currentRound,
+  reveal, showStandings, publicState, timeLeft,
 } from './game.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -117,6 +117,9 @@ const server = createServer(async (req, res) => {
   // The embedded Silkscreen lives with the idle game; the party game borrows it
   // rather than shipping a second copy of the same 90KB of base64.
   if (path === '/assets/fonts.css') return serveFile(res, '../src/fonts.css', true);
+  // Likewise the item atlas: Name That Sprite is the whole reason the party
+  // game exists in the same repo as the idle game.
+  if (path === '/assets/sprites.css') return serveFile(res, '../src/sprites.css', true);
   if (path.startsWith('/assets/')) return serveFile(res, path.slice('/assets/'.length));
 
   if (path === '/events') {
@@ -167,9 +170,8 @@ const server = createServer(async (req, res) => {
         break;
       case 'skip': result = game.phase === 'asking' ? reveal(game) : askNext(game); break;
       case 'standings': result = showStandings(game); break;
-      case 'prompt': result = addPrompt(game, body.text); break;
       case 'reset': {
-        Object.assign(game, createGame({ prompts: game.prompts }));
+        Object.assign(game, createGame());
         result = { ok: true };
         break;
       }
@@ -202,8 +204,6 @@ server.listen(PORT, () => {
   console.log('');
   console.log(`  Big screen   \x1b[33m${line}/host\x1b[0m`);
   console.log(`  Phones       \x1b[1m\x1b[33m${line}\x1b[0m`);
-  console.log('');
-  console.log(`  ${game.prompts.length} prompts loaded — edit party/prompts.mjs before the party.`);
   console.log('');
 });
 

@@ -6,14 +6,15 @@
 //   price   Everyone guesses what a thing is worth. No knowledge gate: the
 //           friend who quit in 2006 still remembers a demon armor was "a lot",
 //           and gets to be outraged when the number comes up.
-//   loot    Four items, one of which this creature does not drop. Fast, and
-//           the only round that rewards actually knowing things — so keep it
-//           short and put it in the middle.
-//   memory  Vote on each other. The game is a pretext; the stories are the
-//           point, and this is the round the whole evening is actually for.
+//   loot    Four items, one of which this creature does not drop. Fast, so
+//           keep it short and put it in the middle.
+//   sprite  32 pixels, no name, four guesses. Nobody reads item names in
+//           Tibia — you recognise the picture — so this is the round that
+//           finds out whether twenty years later you still do.
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { sellPrice } from '../src/data/shops.js';
+import { hasSprite } from '../src/data/sprites.js';
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
@@ -29,7 +30,7 @@ function shuffle(list) {
 /** The public shape of an item — what a client needs to draw it, nothing else. */
 const itemCard = (id) => {
   const item = ITEMS[id];
-  return { id, name: item.name, icon: item.icon, type: item.type };
+  return { id, name: item.name, icon: item.icon, type: item.type, sprite: hasSprite(id) };
 };
 
 // ------------------------------------------------------------------- price
@@ -116,39 +117,37 @@ export function lootScore(correct, msLeft, msTotal) {
   return 600 + Math.round(400 * Math.max(0, Math.min(1, msLeft / msTotal)));
 }
 
-// ------------------------------------------------------------------ memory
+// ------------------------------------------------------------------ sprite
+
+/** Only items we have the real 32x32 art for — the rest are emoji, which is a
+ *  different and much easier question. */
+const DRAWN = Object.keys(ITEMS).filter(hasSprite);
+const DRAWN_BY_TYPE = DRAWN.reduce((byType, id) => {
+  (byType[ITEMS[id].type] ??= []).push(id);
+  return byType;
+}, {});
 
 /**
- * Vote on each other. There is no right answer, which is the point: the score
- * is a scaffold for the argument that follows.
+ * One sprite, no name, four names to choose from.
  *
- * The most-voted player takes the prompt, and everyone who picked them gets
- * something too, so voting is a guess about the room rather than a free shot.
+ * The three wrong names come from the same item type where there are enough of
+ * them, because "which of these is the shield" is not a question when the
+ * picture is obviously a shield. Within a type it comes down to whether you
+ * remember that the brass shield is the round one.
  */
-export function memoryQuestion(prompts, used = []) {
-  const fresh = prompts.filter((p) => !used.includes(p));
+export function spriteQuestion() {
+  const id = pick(DRAWN);
+  const sameType = (DRAWN_BY_TYPE[ITEMS[id].type] ?? []).filter((other) => other !== id);
+  const pool = sameType.length >= 3 ? sameType : DRAWN.filter((other) => other !== id);
+  const wrong = shuffle(pool).slice(0, 3);
+  const options = shuffle([id, ...wrong]);
   return {
-    kind: 'memory',
-    prompt: pick(fresh.length ? fresh : prompts),
-    answer: null, // decided by the room
+    kind: 'sprite',
+    prompt: 'What is this?',
+    item: itemCard(id),
+    options: options.map((other) => ({ id: other, name: ITEMS[other].name })),
+    answer: options.indexOf(id),
   };
-}
-
-export function memoryScores(votes, players) {
-  const tally = new Map();
-  for (const target of Object.values(votes)) {
-    tally.set(target, (tally.get(target) ?? 0) + 1);
-  }
-  const top = Math.max(0, ...tally.values());
-  const winners = [...tally.entries()].filter(([, n]) => n === top).map(([id]) => id);
-
-  const awarded = {};
-  for (const player of players) awarded[player.id] = 0;
-  for (const id of winners) if (id in awarded) awarded[id] += 1000;
-  for (const [voter, target] of Object.entries(votes)) {
-    if (winners.includes(target) && voter in awarded) awarded[voter] += 300;
-  }
-  return { awarded, winners, tally: Object.fromEntries(tally) };
 }
 
 // ------------------------------------------------------------------- rounds
@@ -170,15 +169,15 @@ export const ROUNDS = {
     seconds: 18,
     make: lootQuestion,
   },
-  memory: {
-    id: 'memory',
-    name: 'Who Among Us',
-    icon: '🍻',
-    blurb: 'No right answer. Vote, then explain yourself.',
-    seconds: 30,
-    make: memoryQuestion,
+  sprite: {
+    id: 'sprite',
+    name: 'Name That Sprite',
+    icon: '🔍',
+    blurb: '32 pixels. No name. Do you still know it?',
+    seconds: 18,
+    make: spriteQuestion,
   },
 };
 
-/** The running order: warm up on prices, one sharp round, then the good stuff. */
-export const DEFAULT_ORDER = ['price', 'loot', 'memory'];
+/** The running order: warm up on prices, one sharp round, then the pictures. */
+export const DEFAULT_ORDER = ['price', 'loot', 'sprite'];

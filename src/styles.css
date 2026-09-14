@@ -325,9 +325,11 @@ a { color: var(--yellow); }
 .slot-icon.sprite, .slot-icon.glyph { margin: 0 auto; }
 .detail-icon.sprite, .detail-icon.glyph { width: 32px; height: 32px; }
 .shop-icon.sprite, .shop-icon.glyph { width: 32px; height: 32px; flex: 0 0 32px; }
-.inline-sprite.sprite, .inline-sprite.glyph {
-  display: inline-block; width: 16px; height: 16px; background-size: 32px 32px;
-  background-position: -8px -8px; vertical-align: -3px; font-size: 12px; line-height: 16px;
+/* The .sprite half of this lives in sprites.css: shrinking an atlas needs the
+   per-item offsets shrunk with it. */
+.inline-sprite.glyph {
+  display: inline-block; width: 16px; height: 16px;
+  vertical-align: -3px; font-size: 12px; line-height: 16px;
 }
 
 /* --------------------------------------------------------- gear comparison */

@@ -25,6 +25,20 @@ const el = (tag, props = {}, children = []) => {
 
 const fmt = (n) => Number(n).toLocaleString('en-US');
 
+/**
+ * The real 32x32 sprite where we have one, the emoji where we do not.
+ *
+ * Sprites are scaled with `transform` inside a fixed box rather than by
+ * resizing the atlas, because the atlas is addressed by whole-pixel offsets:
+ * shrink the image and every offset in sprites.css points at the wrong tile.
+ */
+function glyph(item, size) {
+  if (!item.sprite) return el('div', { class: `glyph glyph-${size}`, text: item.icon });
+  return el('div', { class: `spr-box ${size}` }, [
+    el('div', { class: `sprite spr-${item.id}`, title: item.name }),
+  ]);
+}
+
 // --------------------------------------------------------------- the screens
 
 function lobby() {
@@ -69,13 +83,20 @@ function asking() {
 
   if (q.kind === 'price') {
     body.push(el('div', { class: 'hero-item' }, [
-      el('div', { class: 'hero-glyph', text: q.item.icon }),
+      glyph(q.item, 'big'),
       el('div', { class: 'hero-name', text: q.item.name }),
     ]));
   } else if (q.kind === 'loot') {
     body.push(el('div', { class: 'options' }, q.options.map((o, i) => el('div', { class: 'option' }, [
       el('div', { class: 'key', text: String(i + 1) }),
-      el('div', { class: 'glyph', text: o.icon }),
+      glyph(o, 'mid'),
+      el('div', { class: 'label', text: o.name }),
+    ]))));
+  } else if (q.kind === 'sprite') {
+    // The name is the answer, so the picture is all the room gets.
+    body.push(el('div', { class: 'hero-item' }, [glyph(q.item, 'big')]));
+    body.push(el('div', { class: 'options names' }, q.options.map((o, i) => el('div', { class: 'option' }, [
+      el('div', { class: 'key', text: String(i + 1) }),
       el('div', { class: 'label', text: o.name }),
     ]))));
   }
@@ -92,7 +113,7 @@ function revealPrice() {
   return [
     el('div', { class: 'host-main' }, [
       el('div', { class: 'hero-item' }, [
-        el('div', { class: 'hero-glyph', text: state.question.item.icon }),
+        glyph(state.question.item, 'big'),
         el('div', { class: 'hero-name', text: state.question.item.name }),
       ]),
       el('div', { class: 'answer-big', text: `${fmt(r.answer)} gold` }),
@@ -107,9 +128,10 @@ function revealPrice() {
   ];
 }
 
-function revealLoot() {
+/** Loot and Name That Sprite reveal the same way: four options, one right. */
+function revealChoices() {
   const q = state.question;
-  const byId = Object.fromEntries(state.players.map((p) => [p.id, p]));
+  const isSprite = q.kind === 'sprite';
   const pickedBy = (index) => state.players
     .filter((p) => state.result.picks[p.id] === index)
     .map((p) => p.name)
@@ -117,14 +139,16 @@ function revealLoot() {
 
   return [
     el('div', { class: 'host-main' }, [
-      el('div', { class: 'big-prompt', text: `${q.monster.icon} ${q.monster.name} never drops…` }),
-      el('div', { class: 'options' }, q.options.map((o, i) => el('div', {
+      isSprite
+        ? el('div', { class: 'hero-item' }, [glyph(q.item, 'big')])
+        : el('div', { class: 'big-prompt', text: `${q.monster.icon} ${q.monster.name} never drops…` }),
+      el('div', { class: `options${isSprite ? ' names' : ''}` }, q.options.map((o, i) => el('div', {
         class: `option ${i === state.result.answer ? 'right' : 'wrong'}`,
       }, [
-        el('div', { class: 'glyph', text: o.icon }),
+        isSprite ? null : glyph(o, 'mid'),
         el('div', { class: 'label', text: o.name }),
         el('div', { class: 'key', text: pickedBy(i) || '—' }),
-      ]))),
+      ].filter(Boolean)))),
       el('div', { class: 'guesses' }, state.players
         .filter((p) => p.lastGain > 0)
         .map((p) => el('div', { class: 'guess-row' }, [
@@ -132,31 +156,6 @@ function revealLoot() {
           el('span', { class: 'val', text: 'correct' }),
           el('span', { class: 'gain', text: `+${fmt(p.lastGain)}` }),
         ]))),
-    ]),
-  ];
-}
-
-function revealMemory() {
-  const r = state.result;
-  const top = Math.max(1, ...Object.values(r.tally));
-  const rows = state.players
-    .map((p) => ({ player: p, votes: r.tally[p.id] ?? 0 }))
-    .sort((a, b) => b.votes - a.votes);
-
-  return [
-    el('div', { class: 'host-main' }, [
-      el('div', { class: 'big-prompt', text: state.question.prompt }),
-      el('div', { class: 'tally' }, rows.map(({ player, votes }) => {
-        const fill = el('div', { class: 'tally-fill' });
-        fill.style.width = `${(votes / top) * 100}%`;
-        return el('div', { class: `tally-row${r.winners.includes(player.id) ? ' winner' : ''}` }, [
-          el('div', { class: 'tally-name', text: player.name }),
-          el('div', { class: 'tally-bar' }, [fill]),
-          el('div', { class: 'tally-count', text: votes ? String(votes) : '' }),
-        ]);
-      })),
-      el('div', { class: 'host-sub', style: 'text-align:center;font-size:20px',
-        text: r.winners.length ? 'Go on then. Explain.' : 'Nobody voted. Cowards.' }),
     ]),
   ];
 }
@@ -190,9 +189,7 @@ function render() {
   if (state.phase === 'lobby') main = lobby();
   else if (state.phase === 'asking') main = asking();
   else if (state.phase === 'reveal') {
-    main = state.result?.kind === 'price' ? revealPrice()
-      : state.result?.kind === 'loot' ? revealLoot()
-        : revealMemory();
+    main = state.result?.kind === 'price' ? revealPrice() : revealChoices();
   } else if (state.phase === 'standings') main = board('Standings');
   else {
     main = board('🏆 Final');
@@ -216,10 +213,9 @@ function render() {
       el('div', { class: 'keys' }, [
         el('kbd', { text: 'space' }), ' next   ',
         el('kbd', { text: 'S' }), ' standings   ',
-        el('kbd', { text: 'A' }), ' add prompt   ',
         el('kbd', { text: 'R' }), ' reset',
       ]),
-      el('div', { text: `${state.promptCount} prompts` }),
+      el('div', { text: `${state.players.length} playing` }),
     ]),
   );
 }
@@ -252,10 +248,6 @@ document.addEventListener('keydown', (event) => {
     post(state?.phase === 'lobby' ? 'start' : 'next');
   } else if (key === 's') {
     post('standings');
-  } else if (key === 'a') {
-    // Somebody always thinks of a better prompt halfway through the evening.
-    const text = window.prompt('New "Who Among Us" prompt:');
-    if (text) post('prompt', { text });
   } else if (key === 'r') {
     if (window.confirm('Reset the whole game? Scores are lost.')) post('reset');
   }

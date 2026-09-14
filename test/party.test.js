@@ -5,16 +5,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createGame, addPlayer, startGame, submitAnswer, reveal, askNext, showStandings,
-  standings, publicState, addPrompt, removePlayer, rejoin, allAnswered, currentRound,
+  standings, publicState, removePlayer, rejoin, allAnswered, currentRound,
   MAX_PLAYERS,
 } from '../party/game.mjs';
 import {
-  priceQuestion, lootQuestion, priceScore, lootScore, memoryScores, ROUNDS,
+  priceQuestion, lootQuestion, spriteQuestion, priceScore, lootScore, ROUNDS,
 } from '../party/rounds.mjs';
-import { PROMPTS } from '../party/prompts.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { sellPrice } from '../src/data/shops.js';
+import { hasSprite } from '../src/data/sprites.js';
 
 const room = (names, options) => {
   const game = createGame(options);
@@ -71,20 +71,30 @@ test('the loot round pays for speed', () => {
   assert.equal(lootScore(true, 0, 10000), 600, 'a right answer on the buzzer is still worth something');
 });
 
-test('Who Among Us pays the accused and the people who called it', () => {
-  const players = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
-  // b, c and d all point at a; a points at b.
-  const { awarded, winners } = memoryScores({ b: 'a', c: 'a', d: 'a', a: 'b' }, players);
-  assert.deepEqual(winners, ['a']);
-  assert.equal(awarded.a, 1000, 'the accused takes the prompt');
-  assert.equal(awarded.b, 300, 'voting with the room is worth something');
-  assert.equal(awarded.c, 300);
-  assert.equal(awarded.a >= 1000, true);
-  assert.equal(awarded.d, 300);
+test('the sprite round shows art we actually have, and never its name', () => {
+  for (let i = 0; i < 300; i++) {
+    const q = spriteQuestion();
+    assert.ok(hasSprite(q.item.id), `${q.item.id} has no sprite — the question would be an emoji`);
+    assert.equal(q.item.sprite, true, 'the client would fall back to the emoji');
+    assert.equal(q.options.length, 4);
+    assert.equal(new Set(q.options.map((o) => o.id)).size, 4, 'the same item appears twice');
+    assert.equal(q.options[q.answer].id, q.item.id, 'the marked answer is not the item shown');
 
-  // A tie gives both of them the prompt rather than picking arbitrarily.
-  const tied = memoryScores({ a: 'c', b: 'c', c: 'd', d: 'd' }, players);
-  assert.deepEqual(tied.winners.sort(), ['c', 'd']);
+    // The prompt is the giveaway to watch for: it must not contain the name.
+    assert.equal(q.prompt.includes(q.item.name), false, 'the question names the answer');
+  }
+});
+
+test('the sprite round asks within one kind of thing where it can', () => {
+  // Four shields is a question about shields; a shield among three fish is not
+  // a question at all.
+  let sameType = 0;
+  for (let i = 0; i < 200; i++) {
+    const q = spriteQuestion();
+    const types = new Set(q.options.map((o) => ITEMS[o.id].type));
+    if (types.size === 1) sameType += 1;
+  }
+  assert.ok(sameType > 180, `only ${sameType}/200 questions stayed within a type`);
 });
 
 // -------------------------------------------------------------------- flow
@@ -99,10 +109,7 @@ test('a whole game plays from lobby to final scores', () => {
     if (game.phase === 'asking') {
       const round = currentRound(game);
       for (const p of players) {
-        const answer = round.id === 'price' ? 500
-          : round.id === 'loot' ? 0
-            : players[0].id;
-        submitAnswer(game, p.id, answer);
+        submitAnswer(game, p.id, round.id === 'price' ? 500 : 0);
       }
       // Everybody answering should have revealed it without the host pressing anything.
       assert.equal(game.phase, 'reveal', 'a full room should not wait on the clock');
@@ -131,17 +138,6 @@ test('the final scores cannot be wiped by somebody leaning on the space bar', ()
   assert.deepEqual(standings(game).map((p) => p.score), scores, 'the final scores were reset');
 });
 
-test('a round the room is too small for is skipped, not played', () => {
-  // Who Among Us needs three people; with two it is just an accusation.
-  const { game } = room(['Ana', 'Beto'], { order: ['memory'], perRound: 2 });
-  startGame(game);
-  assert.equal(game.phase, 'finished', 'ran a memory round with two players');
-
-  const three = room(['Ana', 'Beto', 'Cata'], { order: ['memory'], perRound: 1 });
-  startGame(three.game);
-  assert.equal(three.game.phase, 'asking');
-});
-
 test('answers are refused when they should be', () => {
   const { game, players } = room(['Ana', 'Beto'], { order: ['price'], perRound: 3 });
   const [ana] = players;
@@ -158,19 +154,15 @@ test('answers are refused when they should be', () => {
   assert.equal(game.answers[ana.id], 250, 'the second answer overwrote the first');
 });
 
-test('the loot round only accepts one of the four', () => {
-  const { game, players } = room(['Ana'], { order: ['loot'], perRound: 1 });
-  startGame(game);
-  assert.ok(submitAnswer(game, players[0].id, 9).error);
-  assert.ok(submitAnswer(game, players[0].id, -1).error);
-  assert.ok(!submitAnswer(game, players[0].id, 2).error);
-});
-
-test('Who Among Us only accepts somebody in the room', () => {
-  const { game, players } = room(['Ana', 'Beto', 'Cata'], { order: ['memory'], perRound: 1 });
-  startGame(game);
-  assert.ok(submitAnswer(game, players[0].id, 'p999').error);
-  assert.ok(!submitAnswer(game, players[0].id, players[1].id).error);
+test('the four-option rounds only accept one of the four', () => {
+  for (const order of [['loot'], ['sprite']]) {
+    const { game, players } = room(['Ana'], { order, perRound: 1 });
+    startGame(game);
+    assert.ok(submitAnswer(game, players[0].id, 9).error, `${order[0]}: took a fifth option`);
+    assert.ok(submitAnswer(game, players[0].id, -1).error, `${order[0]}: took a negative option`);
+    assert.ok(submitAnswer(game, players[0].id, 'banana').error, `${order[0]}: took a word`);
+    assert.ok(!submitAnswer(game, players[0].id, 2).error);
+  }
 });
 
 // ------------------------------------------------------------------ players
@@ -216,7 +208,7 @@ test('a question does not wait on somebody who has gone', () => {
 // ------------------------------------------------------------------- wire
 
 test('the answer is not on the wire while the question is open', () => {
-  const { game, players } = room(['Ana'], { order: ['price', 'loot'], perRound: 1 });
+  const { game, players } = room(['Ana'], { order: ['price', 'loot', 'sprite'], perRound: 1 });
   startGame(game);
 
   const open = publicState(game, players[0].id);
@@ -237,25 +229,6 @@ test('a player only ever sees their own answer', () => {
   assert.equal(asBeto.you.answer, null);
   assert.ok(asBeto.answered.includes(players[0].id), 'the room should see that Ana is in');
   assert.equal(JSON.stringify(asBeto).includes('777'), false, "Ana's guess leaked to Beto");
-});
-
-test('prompts can be added mid-party and are not duplicated', () => {
-  const game = createGame();
-  const before = game.prompts.length;
-  assert.ok(addPrompt(game, 'Who is most likely to fall asleep first').ok);
-  assert.equal(game.prompts.length, before + 1);
-  assert.ok(addPrompt(game, 'Who is most likely to fall asleep first').error);
-  assert.ok(addPrompt(game, 'no').error, 'accepted a two-letter prompt');
-});
-
-test('every shipped prompt is a usable question', () => {
-  assert.ok(PROMPTS.length >= 20, 'not enough prompts to fill an evening');
-  for (const prompt of PROMPTS) {
-    assert.equal(typeof prompt, 'string');
-    assert.ok(prompt.trim().length >= 10, `too short to be a question: "${prompt}"`);
-    assert.equal(prompt, prompt.trim());
-  }
-  assert.equal(new Set(PROMPTS).size, PROMPTS.length, 'the same prompt is in there twice');
 });
 
 test('every round is configured to actually be playable', () => {

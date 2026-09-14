@@ -100,22 +100,16 @@ Three rounds, and the order matters:
 | --- | --- | --- |
 | 🪙 **Price Check** | An item appears; everyone types what a trader pays for it. Closest takes a bonus. | No knowledge gate — the friend who quit in 2006 still remembers a demon armor was "a lot", and gets to be outraged at the real number. Warms the room up. |
 | 💀 **Whose Loot Is This?** | Four items, one of which that creature never drops. Fast, and faster is worth more. | The only round that rewards actually knowing things, so it is short and it goes in the middle. Real OTServ drop tables; the impostor always comes from a creature of a similar tier, or it answers itself. |
-| 🍻 **Who Among Us** | "Most likely to have died to a rotworm at a shamefully high level." Everyone votes for each other. | There is no right answer. The score is a scaffold for the argument, and this is the round the evening is actually for. |
+| 🔍 **Name That Sprite** | One 32×32 sprite on the TV, no name, four names on the phones. | Nobody ever read item names in Tibia — you recognised the picture. The wrong answers come from the same kind of thing, so it comes down to whether you still know that the brass shield is the round one. Finishes the evening on the part everybody actually remembers. |
 
 The host screen has exactly one control — **space** moves everything along —
-plus `S` for standings, `A` to add a prompt somebody just thought of, and `R` to
-start over. At the final scores space deliberately does nothing, because
-somebody will lean on it while the room is still reading the board.
-
-**Edit `party/prompts.mjs` before the party.** The prompts that land are the ones
-about your specific friends, not the generic ones shipped in that file. A good
-prompt has at least two defensible answers: "who was the best player" is a fact
-and dies instantly, "who would ding level 8 and walk straight into the Minotaur
-Caves" takes twenty minutes to settle.
+plus `S` for standings and `R` to start over. At the final scores space
+deliberately does nothing, because somebody will lean on it while the room is
+still reading the board.
 
 Phones keep their seat through a locked screen, a dead battery or a reload, and
 a player whose phone forgot everything can take their own name — and score —
-back. A round nobody has enough people for is skipped rather than played.
+back.
 
 ## Code layout
 
@@ -149,14 +143,15 @@ party/
   server.mjs          dependency-free HTTP + SSE; prints the address to read out
   game.mjs            the state machine, free of I/O so a test can play it out
   rounds.mjs          question generation from src/data
-  prompts.mjs         the Who Among Us prompts — EDIT THIS ONE
   host.html/.js       the television
   player.html/.js     the phone
 tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
 tools/balance.mjs         hunts every area for a simulated hour at fifteen levels
 tools/smoke.mjs           loads the real page in a browser and fails on any console error
 tools/build-artifact.mjs  bundles the game into one self-contained HTML file
-tools/sprite-picker.html  click tiles on a sprite sheet to build src/data/sprites.js
+tools/import-sprites.mjs  packs the sprite atlas and writes src/sprites.css
+tools/sprite-map.json     item id -> sprite index, built by eye — the real source
+tools/sprite-picker.html  click tiles on a sprite sheet to build a mapping by hand
 tools/import-otserv.mjs   pulls creature stats and loot tables from an OTServ data dump
 ```
 
@@ -213,29 +208,36 @@ dump targets 8.7, so a handful of its drops are an OT server's interpretation ra
 
 ## Sprites
 
-Items fall back to emoji, but the game can draw real Tibia sprites instead. No
-open-source repo ships them — not OTServ, not
-[otclient](https://github.com/edubart/otclient) — because they live in the client's
-`Tibia.spr`/`Tibia.dat`, so you supply your own dump.
+161 of the 173 items are drawn with the real Tibia art, packed into one 512×352
+atlas that `src/sprites.css` embeds as a data URI. The remaining twelve — mostly
+creature products — are still emoji, and render fine that way.
 
-**The ids in a sprite dump are a trap.** Dumps are named after the *client* object id of
-whatever version they were ripped from, and that id space is not the *server* id space in
-any `items.xml` — nor is it stable between client versions, because CipSoft inserted items
-over time. Mapping a dump by name through items.xml looks like it works and quietly
-produces a Mastermind Shield that renders as a bunch of bananas. If your dump happens to
-share an id space with a server's `items.otb`, `tools/import-sprites.mjs` will do the job
-automatically; verify a handful of the results before trusting it.
+**The ids in a sprite dump are a trap.** A dump is named by *sprite index*: the file
+called `2400.png` is whatever happened to be 2400th in `Tibia.spr`, not the magic sword.
+That is not the client object id space and not the server id space in any `items.xml`,
+and no lookup table connects them. Mapping a dump by name through items.xml looks like it
+works and quietly produces a Mastermind Shield that renders as a bunch of bananas.
 
-Otherwise map by eye, which is quick with the picker:
+So `tools/sprite-map.json` was built by eye — labelled contact sheets of the dump, then
+every item re-rendered with its own name underneath until the names matched the pictures.
+Treat that file as source, not as output. To rebuild the CSS from the committed atlas:
 
-1. Put the PNGs somewhere under the repo, e.g. `tmp-sprites/`
-2. Open `tools/sprite-picker.html` through the local server
-3. It shows one item at a time and the whole sprite folder as a grid — click the match,
-   press <kbd>S</kbd> to skip, <kbd>Z</kbd> to undo
-4. Copy the two outputs into `src/data/sprites.js` and `src/sprites.css`
+```bash
+node tools/import-sprites.mjs
+```
 
-Anything unmapped keeps its emoji, so a partial mapping renders fine — map the weapons and
-armour you actually see and leave the junk on emoji.
+To re-pack the atlas from your own dump of 32×32 PNGs (needs Python and Pillow):
+
+```bash
+node tools/import-sprites.mjs --sprites ~/tibia-sprites
+```
+
+`tools/sprite-picker.html` is there for extending the map: it shows one item at a time
+next to the whole sprite folder — click the match, <kbd>S</kbd> to skip, <kbd>Z</kbd> to
+undo. Whatever you add, render it with the name underneath and *look* before committing;
+that check is the only thing standing between you and the bananas.
+
+Anything unmapped keeps its emoji, so a partial mapping renders fine.
 
 ## Ideas worth building next
 

@@ -6,32 +6,26 @@
 // the clock; this owns the rules.
 //
 // Phases: lobby -> asking -> reveal -> (asking | standings) -> ... -> finished
-import {
-  ROUNDS, DEFAULT_ORDER, priceScore, lootScore, memoryScores,
-} from './rounds.mjs';
-import { PROMPTS, isValidPrompt } from './prompts.mjs';
+import { ROUNDS, DEFAULT_ORDER, priceScore, lootScore } from './rounds.mjs';
 
 export const PHASES = ['lobby', 'asking', 'reveal', 'standings', 'finished'];
 
 /** Enough for a living room; past this the reveal screen stops being readable. */
 export const MAX_PLAYERS = 12;
-const MIN_PLAYERS = { price: 1, loot: 1, memory: 3 };
 
 let nextId = 1;
 const makeId = () => `p${nextId++}`;
 
-export function createGame({ order = DEFAULT_ORDER, perRound = 5, prompts = PROMPTS } = {}) {
+export function createGame({ order = DEFAULT_ORDER, perRound = 5 } = {}) {
   return {
     phase: 'lobby',
     players: [],
     order,
     perRound,
-    prompts: [...prompts],
-    usedPrompts: [],
     roundIndex: -1,
     questionIndex: -1,
     question: null,
-    answers: {},      // playerId -> answer (a number, an option index, or a playerId)
+    answers: {},      // playerId -> answer (a gold guess or an option index)
     lastResult: null, // what the reveal screen is showing
     endsAt: null,
     seq: 0,           // bumped on every change, so clients can tell frames apart
@@ -74,11 +68,6 @@ export function rejoin(game, id) {
 
 // -------------------------------------------------------------------- flow
 
-/** True when this round can be played with the people currently in the room. */
-export function roundIsPlayable(game, roundId) {
-  return game.players.length >= (MIN_PLAYERS[roundId] ?? 1);
-}
-
 export function startGame(game) {
   if (!game.players.length) return { error: 'Nobody has joined yet.' };
   game.roundIndex = -1;
@@ -88,10 +77,7 @@ export function startGame(game) {
 }
 
 function nextRound(game) {
-  let index = game.roundIndex + 1;
-  // Skip a round the room is too small for — Who Among Us with two people is
-  // just an accusation.
-  while (index < game.order.length && !roundIsPlayable(game, game.order[index])) index += 1;
+  const index = game.roundIndex + 1;
   if (index >= game.order.length) {
     game.phase = 'finished';
     game.question = null;
@@ -109,11 +95,7 @@ export function askNext(game) {
   if (game.questionIndex + 1 >= game.perRound) return nextRound(game);
 
   game.questionIndex += 1;
-  game.question = round.id === 'memory'
-    ? round.make(game.prompts, game.usedPrompts)
-    : round.make();
-  if (round.id === 'memory') game.usedPrompts.push(game.question.prompt);
-
+  game.question = round.make();
   game.answers = {};
   game.lastResult = null;
   game.phase = 'asking';
@@ -139,15 +121,12 @@ export function submitAnswer(game, playerId, value) {
     const guess = Number(digits) * (thousands ? 1000 : 1);
     if (!Number.isFinite(guess) || guess <= 0) return { error: 'Type a number.' };
     game.answers[playerId] = Math.round(guess);
-  } else if (round.id === 'loot') {
+  } else {
     const index = Number(value);
     if (!Number.isInteger(index) || index < 0 || index >= game.question.options.length) {
       return { error: 'Pick one of the four.' };
     }
     game.answers[playerId] = index;
-  } else {
-    if (!game.players.some((p) => p.id === value)) return { error: 'Pick somebody in the room.' };
-    game.answers[playerId] = value;
   }
 
   touch(game);
@@ -184,19 +163,17 @@ export function reveal(game) {
     // A flat bonus for nearest, so there is always somebody to point at.
     if (guesses.length > 1) awarded[guesses[0].id] = (awarded[guesses[0].id] ?? 0) + 300;
     game.lastResult = { kind: 'price', answer: game.question.answer, guesses };
-  } else if (round.id === 'loot') {
+  } else {
+    // Loot and Name That Sprite are the same shape: four options, one right,
+    // faster is worth more.
     for (const [id, choice] of Object.entries(game.answers)) {
       awarded[id] = lootScore(choice === game.question.answer, msLeft, msTotal);
     }
     game.lastResult = {
-      kind: 'loot',
+      kind: round.id,
       answer: game.question.answer,
       picks: Object.fromEntries(Object.entries(game.answers)),
     };
-  } else {
-    const result = memoryScores(game.answers, game.players);
-    Object.assign(awarded, result.awarded);
-    game.lastResult = { kind: 'memory', ...result };
   }
 
   for (const player of game.players) {
@@ -221,17 +198,6 @@ export function showStandings(game) {
 /** Sorted for the board: highest first, ties broken by name so it is stable. */
 export function standings(game) {
   return [...game.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-}
-
-// ------------------------------------------------------------------ prompts
-
-export function addPrompt(game, text) {
-  if (!isValidPrompt(text)) return { error: 'That is a bit short.' };
-  const clean = text.trim().slice(0, 120);
-  if (game.prompts.includes(clean)) return { error: 'Already in the pile.' };
-  game.prompts.push(clean);
-  touch(game);
-  return { ok: true, count: game.prompts.length };
 }
 
 // ------------------------------------------------------------------- views
@@ -273,6 +239,5 @@ export function publicState(game, forPlayerId = null) {
         answer: game.answers[forPlayerId] ?? null,
       }
       : null,
-    promptCount: game.prompts.length,
   };
 }

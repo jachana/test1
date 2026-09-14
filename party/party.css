@@ -92,19 +92,43 @@ button { font: inherit; color: inherit; }
 
 /* The item under the question in a price round. */
 .hero-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.hero-glyph { font-size: clamp(80px, 11vw, 150px); line-height: 1; filter: drop-shadow(0 6px 14px #0009); }
 .hero-name { font-family: var(--display); font-size: clamp(26px, 3vw, 44px); color: var(--yellow); }
 .hero-sub { color: var(--muted); font-size: 18px; }
 
-/* Four big option tiles for the loot round. */
+/* Item art, at three sizes, in two flavours: the real 32x32 sprite where the
+   atlas has one and the emoji where it does not.
+
+   A sprite is scaled with `transform` inside a fixed box, never by resizing the
+   background: sprites.css addresses the atlas by whole-pixel offsets, so
+   shrinking the image would leave every offset pointing at the wrong tile. The
+   box keeps the scaled art in the layout it would have had. */
+.spr-box { display: grid; place-items: center; flex: none; }
+.spr-box .sprite { filter: drop-shadow(0 3px 6px #0009); }
+.spr-box.big { width: clamp(110px, 12vw, 160px); height: clamp(110px, 12vw, 160px); }
+.spr-box.big .sprite { transform: scale(4); }
+.spr-box.mid { width: 72px; height: 72px; }
+.spr-box.mid .sprite { transform: scale(2); }
+.spr-box.small { width: 32px; height: 32px; }
+/* Across the room on a television, and under a thumb on a phone, the same
+   sprite wants different room. */
+.option .spr-box.mid { width: clamp(76px, 7vw, 104px); height: clamp(76px, 7vw, 104px); }
+.option .spr-box.mid .sprite { transform: scale(3); }
+.choice .spr-box.mid { width: 64px; height: 64px; }
+.glyph-big { font-size: clamp(80px, 11vw, 150px); line-height: 1; filter: drop-shadow(0 6px 14px #0009); }
+.glyph-mid { font-size: 56px; line-height: 72px; }
+.glyph-small { font-size: 28px; line-height: 32px; }
+
+/* Four big option tiles for the loot and sprite rounds. */
 .options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+/* Name That Sprite's options are names only, so they can be squarer. */
+.options.names { max-width: 1100px; margin: 0 auto; width: 100%; }
+.options.names .option { padding: 14px 10px; }
 .option {
   background: var(--chrome-face); padding: 20px 12px; text-align: center;
   border: 3px solid; border-color: var(--chrome-lit) var(--chrome-dark) var(--chrome-dark) var(--chrome-lit);
   display: flex; flex-direction: column; gap: 8px; align-items: center;
   transition: transform .15s ease;
 }
-.option .glyph { font-size: clamp(42px, 5vw, 70px); line-height: 1; }
 .option .label { font-family: var(--display); font-size: clamp(13px, 1.2vw, 18px); color: var(--text); }
 .option .key {
   font-family: var(--display); font-size: 15px; color: var(--muted);
@@ -141,15 +165,6 @@ button { font: inherit; color: inherit; }
 .guess-row .gain { font-family: var(--display); color: var(--green); min-width: 90px; text-align: right; }
 .guess-row.best { border-color: var(--yellow); background: #2a2416; }
 
-/* Who Among Us tally — a bar chart of shame. */
-.tally { display: flex; flex-direction: column; gap: 10px; max-width: 900px; margin: 0 auto; width: 100%; }
-.tally-row { display: grid; grid-template-columns: 220px 1fr 60px; gap: 14px; align-items: center; }
-.tally-name { font-family: var(--display); font-size: 22px; color: var(--text); text-align: right; }
-.tally-bar { height: 34px; background: var(--inset); border: 2px solid var(--chrome-dark); overflow: hidden; }
-.tally-fill { height: 100%; background: var(--purple); transition: width .5s ease; }
-.tally-count { font-family: var(--display); font-size: 22px; color: var(--muted); }
-.tally-row.winner .tally-name { color: var(--yellow); }
-.tally-row.winner .tally-fill { background: var(--yellow); }
 
 /* Scoreboard. */
 .board { display: flex; flex-direction: column; gap: 8px; max-width: 1000px; margin: 0 auto; width: 100%; }
@@ -205,7 +220,6 @@ button { font: inherit; color: inherit; }
   border: 3px solid; border-color: var(--chrome-lit) var(--chrome-dark) var(--chrome-dark) var(--chrome-lit);
   cursor: pointer; min-height: 68px; font-size: 18px;
 }
-.choice .glyph { font-size: 32px; line-height: 1; }
 .choice .label { font-family: var(--display); font-size: 17px; }
 .choice:active { border-color: var(--chrome-dark) var(--chrome-lit) var(--chrome-lit) var(--chrome-dark); }
 .choice.picked { background: #2a2416; border-color: var(--yellow) var(--chrome-dark) var(--chrome-dark) var(--yellow); }
@@ -220,6 +234,5 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 900px) {
   .options { grid-template-columns: repeat(2, 1fr); }
-  .tally-row { grid-template-columns: 120px 1fr 44px; }
   .host { padding: 16px; }
 }

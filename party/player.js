@@ -37,6 +37,15 @@ const post = async (action, body) => {
   return res.json();
 };
 
+/** The real sprite where we have one, the emoji where we do not. See host.js
+ *  for why sprites are scaled with `transform` rather than `background-size`. */
+function glyph(item, size) {
+  if (!item.sprite) return el('span', { class: `glyph glyph-${size}`, text: item.icon });
+  return el('span', { class: `spr-box ${size}` }, [
+    el('span', { class: `sprite spr-${item.id}`, title: item.name }),
+  ]);
+}
+
 /** A short buzz on submit, where the phone allows it. */
 const buzz = (ms = 15) => { try { navigator.vibrate?.(ms); } catch { /* not allowed */ } };
 
@@ -84,7 +93,7 @@ function priceInput() {
 
   return [
     el('div', { class: 'player-prompt', text: state.question.prompt }),
-    el('div', { style: 'text-align:center;font-size:64px;line-height:1', text: state.question.item.icon }),
+    el('div', { style: 'display:flex;justify-content:center' }, [glyph(state.question.item, 'mid')]),
     el('div', { style: 'text-align:center;font-family:var(--display);font-size:22px;color:var(--yellow)',
       text: state.question.item.name }),
     input,
@@ -92,10 +101,19 @@ function priceInput() {
   ];
 }
 
-function lootChoices() {
+/**
+ * Four buttons, for both Whose Loot Is This and Name That Sprite.
+ *
+ * The sprite round deliberately shows no picture on the phone: the picture is
+ * on the television, and the whole point is that the room is looking at it
+ * together rather than at twelve separate screens.
+ */
+function choices() {
+  const q = state.question;
   return [
-    el('div', { class: 'player-prompt', text: state.question.prompt }),
-    el('div', { class: 'choices' }, state.question.options.map((o, i) => el('button', {
+    el('div', { class: 'player-prompt', text: q.prompt }),
+    q.kind === 'sprite' ? el('div', { class: 'muted', text: 'It is on the big screen. Look up.' }) : null,
+    el('div', { class: 'choices' }, q.options.map((o, i) => el('button', {
       class: 'choice',
       onClick: async () => {
         const result = await post('answer', { id: me.id, value: i });
@@ -104,28 +122,9 @@ function lootChoices() {
         render();
       },
     }, [
-      el('span', { class: 'glyph', text: o.icon }),
+      q.kind === 'sprite' ? null : glyph(o, 'mid'),
       el('span', { class: 'label grow', text: o.name }),
-    ]))),
-  ];
-}
-
-function memoryChoices() {
-  return [
-    el('div', { class: 'player-prompt', text: state.question.prompt }),
-    el('div', { class: 'muted', text: 'No right answer. Pick somebody and be ready to defend it.' }),
-    el('div', { class: 'choices' }, state.players.map((p) => el('button', {
-      class: 'choice',
-      onClick: async () => {
-        const result = await post('answer', { id: me.id, value: p.id });
-        notice = result.error ?? '';
-        buzz();
-        render();
-      },
-    }, [
-      el('span', { class: 'label grow', text: p.name }),
-      p.id === me.id ? el('span', { class: 'muted', text: 'you' }) : null,
-    ]))),
+    ].filter(Boolean)))),
   ];
 }
 
@@ -134,8 +133,7 @@ function answered() {
   const q = state.question;
   let shown = null;
   if (q?.kind === 'price') shown = `${fmt(mine)} gold`;
-  else if (q?.kind === 'loot') shown = q.options[mine]?.name;
-  else shown = state.players.find((p) => p.id === mine)?.name;
+  else shown = q?.options[mine]?.name;
 
   return [
     el('div', { class: 'player-state' }, [
@@ -179,8 +177,7 @@ function render() {
   } else if (state.phase === 'asking') {
     body = state.you?.answered ? answered()
       : state.question.kind === 'price' ? priceInput()
-        : state.question.kind === 'loot' ? lootChoices()
-          : memoryChoices();
+        : choices();
   } else if (state.phase === 'reveal') {
     body = waitScreen('Results', 'Look up.');
   } else if (state.phase === 'standings') {

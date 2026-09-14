@@ -1,16 +1,23 @@
-// Turns a folder of Tibia item sprites into src/sprites.css.
+// Turns the hand-built sprite map into src/sprites.css and src/data/sprites.js.
 //
-//   node tools/import-sprites.mjs --sprites ~/tibia-sprites --otserv /tmp/otserv
+//   node tools/import-sprites.mjs                     # rebuild from tools/item-atlas.png
+//   node tools/import-sprites.mjs --sprites ~/dump    # re-pack the atlas from a sprite dump
 //
-// The sprite dumps floating around name each PNG after its Tibia item id
-// (2400.png is the magic sword), and OTServ's items.xml maps names to those
-// ids — so the two together give us a name-based mapping for free.
+// The ids in a Tibia sprite dump are *sprite indices*, not item ids: the file
+// called 2400.png is whatever happened to be 2400th in the .spr, not the magic
+// sword. An earlier version of this script mapped them by looking names up in
+// OTServ's items.xml, which produced a Mastermind Shield that rendered as a
+// bunch of bananas. There is no lookup table that fixes this, so the mapping in
+// tools/sprite-map.json was built by eye — contact sheets of the dump, then
+// every item rendered with its own name underneath until the names matched the
+// pictures. Treat that file as source, not as output.
 //
-// Sprites are embedded as data URIs rather than packed into a sheet: the bytes
-// are copied verbatim (no decode, no re-encode, no quality loss), it survives
-// being bundled into a single-file artifact, and adding an item is one re-run.
-// Items with no sprite keep their emoji, so a partial set is fine.
-import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
+// The 161 mapped sprites are packed into one 512x352 atlas and embedded as a
+// single data URI, which is a tenth the size of 161 separate ones and survives
+// being inlined into the single-file artifact build. Items with no sprite keep
+// their emoji, so a partial map is fine.
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ITEMS } from '../src/data/items.js';
@@ -20,77 +27,92 @@ const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i === -1 ? fallback : process.argv[i + 1];
 };
-const spriteDir = resolve(arg('sprites', '/tmp/tibia-sprites'));
-const otserv = resolve(arg('otserv', '/tmp/otserv'));
 
-// Items that postdate this sprite set (potions arrived in 8.0, creature
-// products later still). Where the era had something equivalent, borrow it;
-// the rest keep their emoji.
-const SUBSTITUTE = {
-  health_potion: 2006, // vial
-  strong_health_potion: 2006,
-  great_health_potion: 2006,
-  mana_potion: 2006,
-  strong_mana_potion: 2006,
-  great_mana_potion: 2006,
-  rune_light_healing: 2265, // intense healing rune
-  broadsword: 2413, // "broad sword" in items.xml
-  royal_crossbow: 2455, // crossbow
-  rainbow_trout: 2667, // fish
-};
+const mapPath = join(root, 'tools/sprite-map.json');
+const atlasPath = join(root, 'tools/item-atlas.png');
+const COLS = 16;
 
-const xmlPath = join(otserv, 'data/items/items.xml');
-if (!existsSync(xmlPath)) {
-  console.error(`no items.xml at ${xmlPath} — clone OpenTibiaArchives/otserv and pass --otserv`);
+const map = JSON.parse(readFileSync(mapPath, 'utf8'));
+const items = Object.keys(map).filter((k) => !k.startsWith('_')).sort();
+
+const unknown = items.filter((id) => !ITEMS[id]);
+if (unknown.length) {
+  console.error(`sprite-map.json names items that do not exist: ${unknown.join(', ')}`);
   process.exit(1);
 }
-const xml = readFileSync(xmlPath, 'utf8');
-const idByName = new Map();
-for (const m of xml.matchAll(/<item id="(\d+)"[^>]*name="([^"]+)"/g)) {
-  const name = m[2].toLowerCase();
-  if (!idByName.has(name)) idByName.set(name, Number(m[1])); // lowest id wins
-}
 
-const available = new Set(
-  readdirSync(spriteDir).filter((f) => f.endsWith('.png')).map((f) => Number(f.slice(0, -4))),
-);
-
-const rules = [];
-const skipped = [];
-let bytes = 0;
-
-for (const [id, item] of Object.entries(ITEMS)) {
-  const tibiaId = SUBSTITUTE[id] ?? idByName.get(item.name.toLowerCase());
-  if (!tibiaId || !available.has(tibiaId)) {
-    skipped.push(item.name);
-    continue;
+// Re-packing needs the dump and Pillow; the committed atlas covers the common
+// case of "I changed nothing, rebuild the CSS".
+const dump = arg('sprites', null);
+if (dump) {
+  const dir = resolve(dump);
+  const have = new Set(readdirSync(dir).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)));
+  const missing = items.filter((id) => !have.has(String(map[id])));
+  if (missing.length) {
+    console.error(`dump has no sprite for: ${missing.map((id) => `${id}=${map[id]}`).join(', ')}`);
+    process.exit(1);
   }
-  const png = readFileSync(join(spriteDir, `${tibiaId}.png`));
-  bytes += png.length;
-  rules.push({ id, tibiaId, name: item.name, data: png.toString('base64') });
+  const rows = Math.ceil(items.length / COLS);
+  execFileSync('python3', ['-c', `
+import json, sys
+from PIL import Image
+src, out, cols = sys.argv[1], sys.argv[2], ${COLS}
+items = json.loads(sys.argv[3]); mapping = json.loads(sys.argv[4])
+atlas = Image.new('RGBA', (cols * 32, ${rows} * 32), (0, 0, 0, 0))
+for n, item in enumerate(items):
+    sp = Image.open(f'{src}/{mapping[item]}.png').convert('RGBA')
+    atlas.paste(sp, (n % cols * 32, n // cols * 32), sp)
+atlas.save(out, optimize=True)
+`, dir, atlasPath, JSON.stringify(items), JSON.stringify(map)], { stdio: 'inherit' });
+  console.log(`packed ${items.length} sprites into ${atlasPath}`);
 }
 
-const css = `/* Generated by tools/import-sprites.mjs — do not edit by hand.
-   ${rules.length} Tibia item sprites, 32x32, embedded as data URIs.
-   Item ids come from OTServ's items.xml; sprite files are named after them. */
+if (!existsSync(atlasPath)) {
+  console.error(`no atlas at ${atlasPath} — pass --sprites <dump> to pack one`);
+  process.exit(1);
+}
+const atlas = readFileSync(atlasPath);
+const uri = `data:image/png;base64,${atlas.toString('base64')}`;
+
+const rows = Math.ceil(items.length / COLS);
+const at = (n, div) => {
+  const x = ((n % COLS) * 32) / div;
+  const y = (Math.floor(n / COLS) * 32) / div;
+  return `-${x}px -${y}px`;
+};
+// Half-size copies for the 16px inline glyphs: scaling an atlas down means
+// scaling its offsets too, so each item needs a second rule rather than one
+// shared `background-size`.
+const full = items.map((id, n) => `.spr-${id}{background-position:${at(n, 1)}}`);
+const half = items.map((id, n) => `.inline-sprite.spr-${id}{background-position:${at(n, 2)}}`);
+
+const css = `/* Item sprites, generated by tools/import-sprites.mjs — do not edit.
+   ${items.length} of ${Object.keys(ITEMS).length} items; the rest fall back to their emoji.
+   See the Sprites section of README.md. */
 .sprite { display: block; width: 32px; height: 32px; image-rendering: pixelated;
-  background-repeat: no-repeat; background-position: center; }
-${rules.map((r) => `.spr-${r.id} { background-image: url(data:image/png;base64,${r.data}); } /* ${r.name} (${r.tibiaId}) */`).join('\n')}
+  background-repeat: no-repeat;
+  background-image: url(${uri}); }
+.inline-sprite.sprite {
+  display: inline-block; width: 16px; height: 16px; vertical-align: -3px;
+  background-size: ${(COLS * 32) / 2}px ${(rows * 32) / 2}px;
+}
+${full.join('\n')}
+${half.join('\n')}
 `;
 writeFileSync(join(root, 'src/sprites.css'), css);
 
-const registry = `// Generated by tools/import-sprites.mjs — do not edit by hand.
+const js = `// Which items have a sprite in src/sprites.css.
 //
-// Which items have a sprite in src/sprites.css. Anything missing falls back to
-// the emoji on the item itself, so a partial set renders fine.
+// Generated by tools/import-sprites.mjs — see the Sprites section of README.md.
+// Empty means "emoji everywhere", which is the default and renders fine.
 export const SPRITE_IDS = new Set([
-${rules.map((r) => `  '${r.id}',`).join('\n')}
+${items.map((id) => `  '${id}',`).join('\n')}
 ]);
 
 export const hasSprite = (itemId) => SPRITE_IDS.has(itemId);
 `;
-writeFileSync(join(root, 'src/data/sprites.js'), registry);
+writeFileSync(join(root, 'src/data/sprites.js'), js);
 
-console.log(`wrote ${rules.length} sprites (${(bytes / 1024).toFixed(0)} KB raw, `
-  + `${(css.length / 1024).toFixed(0)} KB of CSS) from ${spriteDir}`);
-if (skipped.length) console.log(`no sprite for ${skipped.length}: ${skipped.join(', ')}`);
+const withoit = Object.keys(ITEMS).filter((id) => !map[id]);
+console.log(`wrote src/sprites.css (${(css.length / 1024).toFixed(0)} KB) and src/data/sprites.js`);
+console.log(`${items.length} items with sprites, ${withoit.length} on emoji: ${withoit.join(' ')}`);
