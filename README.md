@@ -79,6 +79,44 @@ a druid that held every sorcerer spell but three was a strictly worse sorcerer. 
 on element — the sorcerer keeps fire and energy and hits hardest, the druid takes the ice
 line, gets Mass Healing, and multiplies every heal it casts.
 
+## The LAN party game
+
+`party/` is a second game that runs on the same `src/data` — a Jackbox-shaped
+quiz for a room with one television and a pile of phones.
+
+```bash
+npm run party
+```
+
+It prints two addresses: `/host` goes on the TV, the bare one goes on everyone's
+phone. No installs, no accounts, no internet — plain Node, no dependencies, and
+Server-Sent Events instead of WebSockets, because this runs on a laptop at a LAN
+party where the wifi is bad and nobody is going to `npm install` anything at
+11pm.
+
+Three rounds, and the order matters:
+
+| Round | What happens | Why it is in that slot |
+| --- | --- | --- |
+| 🪙 **Price Check** | An item appears; everyone types what a trader pays for it. Closest takes a bonus. | No knowledge gate — the friend who quit in 2006 still remembers a demon armor was "a lot", and gets to be outraged at the real number. Warms the room up. |
+| 💀 **Whose Loot Is This?** | Four items, one of which that creature never drops. Fast, and faster is worth more. | The only round that rewards actually knowing things, so it is short and it goes in the middle. Real OTServ drop tables; the impostor always comes from a creature of a similar tier, or it answers itself. |
+| 🍻 **Who Among Us** | "Most likely to have died to a rotworm at a shamefully high level." Everyone votes for each other. | There is no right answer. The score is a scaffold for the argument, and this is the round the evening is actually for. |
+
+The host screen has exactly one control — **space** moves everything along —
+plus `S` for standings, `A` to add a prompt somebody just thought of, and `R` to
+start over. At the final scores space deliberately does nothing, because
+somebody will lean on it while the room is still reading the board.
+
+**Edit `party/prompts.mjs` before the party.** The prompts that land are the ones
+about your specific friends, not the generic ones shipped in that file. A good
+prompt has at least two defensible answers: "who was the best player" is a fact
+and dies instantly, "who would ding level 8 and walk straight into the Minotaur
+Caves" takes twenty minutes to settle.
+
+Phones keep their seat through a locked screen, a dead battery or a reload, and
+a player whose phone forgot everything can take their own name — and score —
+back. A round nobody has enough people for is skipped rather than played.
+
 ## Code layout
 
 ```
@@ -90,6 +128,7 @@ src/core/
   formulas.js         experience, skill tries, hp/mana/cap, damage, defence
   bus.js util.js      tiny pub/sub and formatting helpers
 src/data/             pure content: items, monsters, areas, quests, actions, spells, shops, skills, vocations
+                      — shared with party/, which is why it holds no game logic
 src/fonts.css         Silkscreen (SIL OFL 1.1) embedded, so the client looks right offline
 src/systems/
   player.js           levels, skill tries, regeneration, food, potions, death
@@ -106,6 +145,13 @@ src/ui/
   dom.js              el() / bar() / card() / button() / kvList() helpers
   sound.js            OscillatorNode blips; nothing is constructed until the first one plays
   views/              one module per page (incl. the level 8 vocation chooser)
+party/
+  server.mjs          dependency-free HTTP + SSE; prints the address to read out
+  game.mjs            the state machine, free of I/O so a test can play it out
+  rounds.mjs          question generation from src/data
+  prompts.mjs         the Who Among Us prompts — EDIT THIS ONE
+  host.html/.js       the television
+  player.html/.js     the phone
 tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
 tools/balance.mjs         hunts every area for a simulated hour at fifteen levels
 tools/smoke.mjs           loads the real page in a browser and fails on any console error
