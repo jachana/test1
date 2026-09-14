@@ -171,10 +171,23 @@ export function regenTick(dt) {
   // Higher levels heal in bigger chunks, or an idle hunt can never keep up.
   const tickSize = Math.floor(S.char.level / 15);
 
+  // Resting counts for more, so the clock runs faster while you rest rather
+  // than the threshold moving.
+  //
+  // The other way round — banking raw milliseconds and dividing the threshold
+  // by RESTING_SPEEDUP while resting — quietly pays out time at whatever rate
+  // happens to be in force when the bucket drains. Twenty-two seconds of
+  // fighting would bank 22,000ms, and the moment the creature died the
+  // threshold dropped to 3,000 and the whole bank cashed out at the resting
+  // rate. A level 1 citizen was regenerating 0.23 hp a second against a
+  // documented 0.08, which is why the hunting guide's supply estimate for the
+  // starter sewers was out by 7x in the one place a new player reads it.
+  const speed = resting ? RESTING_SPEEDUP : 1;
+
   if (S.char.food > 0) {
     S.char.food = Math.max(0, S.char.food - dt / 1000);
-    t.hpRegen += dt;
-    const hpEvery = (voc.hpRegen.seconds * 1000) / (resting ? RESTING_SPEEDUP : 1);
+    t.hpRegen += dt * speed;
+    const hpEvery = voc.hpRegen.seconds * 1000;
     while (t.hpRegen >= hpEvery) {
       t.hpRegen -= hpEvery;
       if (S.char.hp < maxHp()) heal(Math.round((voc.hpRegen.amount + regenBonus() + tickSize) * perkRegen()));
@@ -184,8 +197,8 @@ export function regenTick(dt) {
   }
 
   // Mana always trickles back, faster with food and a life ring.
-  t.manaRegen += dt;
-  const manaEvery = (voc.manaRegen.seconds * 1000 * (S.char.food > 0 ? 1 : 2.5)) / (resting ? RESTING_SPEEDUP : 1);
+  t.manaRegen += dt * speed;
+  const manaEvery = voc.manaRegen.seconds * 1000 * (S.char.food > 0 ? 1 : 2.5);
   while (t.manaRegen >= manaEvery) {
     t.manaRegen -= manaEvery;
     if (S.char.mana < maxMp()) restoreMana(Math.round((voc.manaRegen.amount + regenBonus() + tickSize) * perkRegen()));

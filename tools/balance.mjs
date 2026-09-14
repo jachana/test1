@@ -104,6 +104,7 @@ function run(area, band) {
     taken: taken / hours,
     lowest,
     incoming: predicted.incoming * 3600,
+    predictedPotions: predicted.potionsPerHour,
     predicted,
   };
 }
@@ -123,8 +124,8 @@ for (const area of AREAS) {
     const off = r.exp > 0 ? (r.predicted.expPerHour / r.exp) : 0;
     console.log(
       `  lvl ${String(band.level).padStart(3)}  ${num(r.exp)} exp  ${num(r.gold)} gp  `
-      + `${String(r.deaths).padStart(2)}d ${String(Math.round(r.potions)).padStart(4)}p  `
-      + `hit ${num(r.taken)}/h (guide ${num(r.incoming)})  low ${String(Math.round(r.lowest * 100)).padStart(3)}%  `
+      + `${String(r.deaths).padStart(2)}d  `
+      + `hit ${num(r.taken)}/h (guide ${num(r.incoming)})  pots ${String(Math.round(r.potions)).padStart(4)} (guide ${String(Math.round(r.predictedPotions)).padStart(4)})  low ${String(Math.round(r.lowest * 100)).padStart(3)}%  `
       + `${r.predicted.verdict.label.padEnd(11)}guide ${off ? `${off.toFixed(2)}x` : '—'}${r.quit ? '  \x1b[31mQUIT\x1b[0m' : ''}`,
     );
   }

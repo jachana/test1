@@ -103,3 +103,46 @@ test('a save naming a perk this build does not have still loads', () => {
   assert.equal(loaded.perks.iron_skin, PERKS.find((p) => p.id === 'iron_skin').max, 'kept a rank past the maximum');
   assert.equal(loaded.char.soul, 0, 'kept a negative soul balance');
 });
+
+test('regeneration is the rate it says it is, resting or fighting', async () => {
+  const { regenTick } = await import('../src/systems/player.js');
+  const { RESTING_SPEEDUP } = await import('../src/core/formulas.js');
+  const { VOCATIONS } = await import('../src/data/vocations.js');
+
+  // Run one hour of a fixed duty cycle with the health pinned low, so every
+  // tick that can heal does, and count what actually came out.
+  const rateFor = (fightingMs, restingMs) => {
+    setState(createState('Clock'));
+    S.char.food = Infinity;
+    let healed = 0;
+    const period = fightingMs + restingMs;
+    for (let ms = 0; ms < 3600_000; ms += 100) {
+      S.combat = (ms % period) < fightingMs ? { respawn: 0 } : { respawn: 1 };
+      const before = S.char.hp;
+      regenTick(100);
+      healed += Math.max(0, S.char.hp - before);
+      S.char.hp = 1; // never cap out, so nothing is silently discarded
+    }
+    return healed / 3600;
+  };
+
+  const perTick = VOCATIONS.none.hpRegen.amount;
+  const every = VOCATIONS.none.hpRegen.seconds;
+  const base = perTick / every;
+
+  // Pure fighting is the plain rate; pure resting is exactly the speed-up.
+  assert.ok(Math.abs(rateFor(10_000, 0) - base) < base * 0.05, 'fighting is not the base rate');
+  assert.ok(Math.abs(rateFor(0, 10_000) - base * RESTING_SPEEDUP) < base * 0.05, 'resting is not the speed-up');
+
+  // And a mix is the weighted average of the two — which is the whole point.
+  //
+  // Accruing raw milliseconds and dividing the threshold while resting instead
+  // banks fight time and cashes it at the resting rate the instant a creature
+  // dies: a 22-second fight followed by a 1.5-second respawn paid out 0.162
+  // hp/s against a documented 0.099, so the engine quietly out-healed its own
+  // hunting guide by 63% and the guide took the blame for it.
+  const expected = base * (22 + 1.5 * RESTING_SPEEDUP) / 23.5;
+  const mixed = rateFor(22_000, 1_500);
+  assert.ok(Math.abs(mixed - expected) < expected * 0.06,
+    `a 22s/1.5s cycle healed ${mixed.toFixed(4)} hp/s, should be ${expected.toFixed(4)}`);
+});
