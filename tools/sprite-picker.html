@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite Picker — Tibia Idle</title>
+<style>
+  :root { --chrome: #45474a; --lit: #6e7276; --dark: #24262a; --inset: #101113; --text: #d6d6d2; --yellow: #ffe35b; }
+  body { margin: 0; font: 12px Tahoma, Verdana, sans-serif; background: #2b2d30; color: var(--text); }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 10px; padding: 10px; height: 100vh; box-sizing: border-box; }
+  .panel { background: var(--chrome); border: 2px solid; border-color: var(--lit) var(--dark) var(--dark) var(--lit);
+    padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  h1 { font-size: 14px; margin: 0; }
+  .sheet { overflow: auto; background: var(--inset); padding: 6px; flex: 1; min-height: 0;
+    border: 2px solid; border-color: var(--dark) var(--lit) var(--lit) var(--dark); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 3px; }
+  .cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    background: #1b1c1f; border: 1px solid #000; cursor: pointer; position: relative; }
+  .cell:hover { border-color: var(--yellow); }
+  .cell.used { opacity: .35; }
+  .cell img { image-rendering: pixelated; }
+  .cell b { position: absolute; bottom: -1px; right: 1px; font: 8px monospace; color: #888; }
+  input, select, button, textarea { font: inherit; color: var(--text); background: var(--inset);
+    border: 2px solid; border-color: var(--dark) var(--lit) var(--lit) var(--dark); padding: 5px 6px; width: 100%; box-sizing: border-box; }
+  button { background: #5a5d61; cursor: pointer; border-color: var(--lit) var(--dark) var(--dark) var(--lit); }
+  button:hover { background: #6b6f74; }
+  textarea { height: 160px; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+  label { font-size: 11px; color: #a9a9a4; }
+  .target { display: flex; gap: 10px; align-items: center; background: var(--inset); padding: 8px;
+    border: 2px solid; border-color: var(--dark) var(--lit) var(--lit) var(--dark); }
+  .target .emoji { font-size: 26px; }
+  .target .name { font-size: 14px; color: #fff; }
+  .hint { color: #a9a9a4; line-height: 1.5; }
+  .done { color: #7ddc5a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Sprite picker</h1>
+    <p class="hint" style="margin:0">
+      Point this at a folder of Tibia sprite PNGs named by id (<code>2148.png</code>). Sprite dumps use
+      whichever client's id space they were ripped from, so the numbers rarely line up with a server's
+      items.xml — mapping by eye is the reliable way. Click the sprite that matches the item on the right.
+      <kbd>S</kbd> skips, <kbd>Z</kbd> undoes.
+    </p>
+    <div style="display:flex; gap:8px; align-items:center">
+      <label style="flex:0 0 auto">Folder</label>
+      <input id="dir" value="../tmp-sprites" style="flex:1">
+      <label style="flex:0 0 auto">ids</label>
+      <input id="from" type="number" value="2" style="width:70px">
+      <input id="to" type="number" value="3318" style="width:70px">
+      <button id="load" style="width:70px">Load</button>
+    </div>
+    <div class="sheet"><div class="grid" id="grid"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="target" id="target"></div>
+    <div style="display:flex; gap:6px">
+      <button id="skip">Skip (S)</button>
+      <button id="undo">Undo (Z)</button>
+    </div>
+    <label>Only show items of type</label>
+    <select id="filter"></select>
+    <label>Mapped <span id="count">0</span> — paste into src/data/sprites.js</label>
+    <textarea id="out" readonly></textarea>
+    <button id="copy">Copy mapping</button>
+    <label>…and the matching CSS (one rule per item)</label>
+    <button id="copycss">Copy sprites.css</button>
+  </div>
+</div>
+
+<script type="module">
+import { ITEMS } from '../src/data/items.js';
+
+const grid = document.getElementById('grid');
+const targetBox = document.getElementById('target');
+const out = document.getElementById('out');
+const filter = document.getElementById('filter');
+const mapping = new Map(); // itemId -> sprite id
+const skipped = new Set();
+const order = [];
+
+const types = [...new Set(Object.values(ITEMS).map((i) => i.type))].sort();
+filter.replaceChildren(...['(everything)', ...types].map((t) => {
+  const o = document.createElement('option');
+  o.value = t === '(everything)' ? '' : t;
+  o.textContent = t;
+  return o;
+}));
+
+const queue = () => Object.values(ITEMS)
+  .filter((i) => !mapping.has(i.id) && !skipped.has(i.id))
+  .filter((i) => !filter.value || i.type === filter.value);
+
+function current() { return queue()[0] ?? null; }
+
+function renderTarget() {
+  const item = current();
+  if (!item) {
+    targetBox.replaceChildren(Object.assign(document.createElement('div'),
+      { className: 'done', textContent: 'Nothing left to map.' }));
+    return;
+  }
+  targetBox.innerHTML = `<span class="emoji">${item.icon}</span>
+    <div><div class="name">${item.name}</div>
+    <div class="hint">${item.type}${item.slot ? ` · ${item.slot}` : ''} · ${queue().length} left</div></div>`;
+}
+
+function renderOutput() {
+  document.getElementById('count').textContent = String(mapping.size);
+  out.value = `export const SPRITE_IDS = new Set([\n${[...mapping.keys()].map((id) => `  '${id}',`).join('\n')}\n]);`;
+}
+
+function assign(spriteId) {
+  const item = current();
+  if (!item) return;
+  mapping.set(item.id, spriteId);
+  order.push(item.id);
+  document.querySelector(`.cell[data-id="${spriteId}"]`)?.classList.add('used');
+  renderTarget();
+  renderOutput();
+}
+
+document.getElementById('load').addEventListener('click', () => {
+  const dir = document.getElementById('dir').value.replace(/\/$/, '');
+  const from = Number(document.getElementById('from').value);
+  const to = Number(document.getElementById('to').value);
+  grid.replaceChildren(...Array.from({ length: to - from + 1 }, (_, n) => {
+    const id = from + n;
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.id = String(id);
+    cell.innerHTML = `<img src="${dir}/${id}.png" loading="lazy" onerror="this.closest('.cell').remove()"><b>${id}</b>`;
+    cell.addEventListener('click', () => assign(id));
+    return cell;
+  }));
+});
+
+document.getElementById('skip').addEventListener('click', () => {
+  const item = current();
+  if (item) { skipped.add(item.id); renderTarget(); }
+});
+document.getElementById('undo').addEventListener('click', () => {
+  const last = order.pop();
+  if (last) {
+    document.querySelector(`.cell[data-id="${mapping.get(last)}"]`)?.classList.remove('used');
+    mapping.delete(last);
+    renderTarget();
+    renderOutput();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 's') document.getElementById('skip').click();
+  if (e.key === 'z') document.getElementById('undo').click();
+});
+filter.addEventListener('change', renderTarget);
+document.getElementById('copy').addEventListener('click', () => navigator.clipboard.writeText(out.value));
+document.getElementById('copycss').addEventListener('click', async () => {
+  const dir = document.getElementById('dir').value.replace(/\/$/, '');
+  const files = await Promise.all([...mapping].map(async ([itemId, spriteId]) => {
+    const res = await fetch(`${dir}/${spriteId}.png`);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    let bin = '';
+    for (const b of buf) bin += String.fromCharCode(b);
+    return `.spr-${itemId} { background-image: url(data:image/png;base64,${btoa(bin)}); }`;
+  }));
+  await navigator.clipboard.writeText(files.join('\n'));
+});
+
+document.getElementById('load').click();
+renderTarget();
+renderOutput();
+</script>
+</body>
+</html>
