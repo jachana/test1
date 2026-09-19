@@ -236,3 +236,42 @@ button { font: inherit; color: inherit; }
   .options { grid-template-columns: repeat(2, 1fr); }
   .host { padding: 16px; }
 }
+
+/* On a phone the header is a label, not a title card — it must not wrap into
+   three lines and push the question off the screen. */
+@media (max-width: 560px) {
+  .host-top { gap: 10px; align-items: flex-start; }
+  .host-title { font-size: 19px; }
+  .round-badge { font-size: 15px; }
+  .host-sub { font-size: 13px; }
+  .host-join { font-size: 20px; padding: 6px 12px; }
+}
+
+/* ------------------------------------------------------- practice mode (solo)
+   One screen instead of a television plus phones, so the answer widget sits
+   under the question rather than in somebody's hand. */
+.solo-blurb { max-width: 640px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; gap: 16px; }
+.solo-blurb p { margin: 0; color: var(--text); }
+.solo-rounds { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.solo-round {
+  display: flex; gap: 14px; align-items: center; background: var(--chrome-face); padding: 12px 14px;
+  border: 3px solid; border-color: var(--chrome-lit) var(--chrome-dark) var(--chrome-dark) var(--chrome-lit);
+}
+.solo-round-icon { font-size: 30px; line-height: 1; flex: none; }
+.solo-round-name { font-family: var(--display); font-size: 17px; color: var(--yellow); }
+.solo-answer { display: flex; flex-direction: column; gap: 10px; max-width: 420px; margin: 0 auto; width: 100%; }
+.solo-gain { font-family: var(--display); font-size: clamp(28px, 3vw, 40px); color: var(--green); text-align: center; }
+.solo-gain.zero { color: var(--muted); }
+.solo-footnote { max-width: 620px; margin: 10px auto 0; text-align: center; color: var(--muted); font-size: 15px; }
+.solo-footnote code {
+  font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--yellow);
+  background: var(--inset); border: 1px solid var(--chrome-dark); padding: 1px 6px;
+}
+/* The one you got wrong, next to the one that was right. */
+.option.picked-wrong { opacity: 1; border-color: var(--red) var(--chrome-dark) var(--chrome-dark) var(--red); background: #301b1a; }
+.option.picked-wrong .label { color: var(--red); }
+button.option { cursor: pointer; font: inherit; color: inherit; }
+button.option:hover { background: var(--chrome-hover); }
+.btn-lg { padding: 16px 32px; font-size: 19px; }
+.host-main .btn-lg { align-self: center; }
+.host-main > .muted { text-align: center; }

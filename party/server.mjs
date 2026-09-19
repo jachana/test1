@@ -114,6 +114,9 @@ const server = createServer(async (req, res) => {
 
   if (path === '/') return serveFile(res, 'player.html');
   if (path === '/host') return serveFile(res, 'host.html');
+  // Practice mode: the same rounds, alone, for testing the questions before
+  // the party rather than in front of everybody.
+  if (path === '/solo') return serveFile(res, 'solo.html');
   // The embedded Silkscreen lives with the idle game; the party game borrows it
   // rather than shipping a second copy of the same 90KB of base64.
   if (path === '/assets/fonts.css') return serveFile(res, '../src/fonts.css', true);

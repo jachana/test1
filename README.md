@@ -111,6 +111,17 @@ Phones keep their seat through a locked screen, a dead battery or a reload, and
 a player whose phone forgot everything can take their own name — and score —
 back.
 
+**Practice mode** is the same three rounds played alone on one screen, at `/solo`
+while the server is running, or as a standalone page:
+
+```bash
+npm run build       # dist/tibia-party.html, one self-contained file
+```
+
+It shares `rounds.mjs` with the real game, so a question you see there is a
+question that can come up on the night — which makes it the way to find out
+whether the questions land before you inflict them on six people.
+
 ## Code layout
 
 ```
@@ -145,10 +156,12 @@ party/
   rounds.mjs          question generation from src/data
   host.html/.js       the television
   player.html/.js     the phone
+  solo.html/.js       practice mode: the same rounds, alone, on one screen
 tools/check-data.mjs      cross-checks every id in src/data — run it after editing content
 tools/balance.mjs         hunts every area for a simulated hour at fifteen levels
 tools/smoke.mjs           loads the real page in a browser and fails on any console error
-tools/build-artifact.mjs  bundles the game into one self-contained HTML file
+tools/build-artifact.mjs  bundles the idle game into one self-contained HTML file
+tools/build-party.mjs     bundles party practice mode the same way
 tools/import-sprites.mjs  packs the sprite atlas and writes src/sprites.css
 tools/sprite-map.json     item id -> sprite index, built by eye — the real source
 tools/sprite-picker.html  click tiles on a sprite sheet to build a mapping by hand

@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "An idle game in the shape of Melvor Idle, built out of Tibia 7.6 — plus a LAN party quiz that runs on the same data",
+  "description": "An idle game in the shape of Melvor Idle, built out of Tibia 7.6 \u2014 plus a LAN party quiz that runs on the same data",
   "scripts": {
     "test": "node --test test/*.test.js && node tools/check-data.mjs",
     "start": "npx http-server -p 8000 -c-1",
-    "build": "node tools/build-artifact.mjs dist",
+    "build": "node tools/build-artifact.mjs dist && node tools/build-party.mjs dist",
     "party": "node party/server.mjs"
   },
   "license": "MIT"

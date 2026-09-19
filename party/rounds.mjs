@@ -128,18 +128,25 @@ const DRAWN_BY_TYPE = DRAWN.reduce((byType, id) => {
 }, {});
 
 /**
+ * Only things with three siblings to hide among. "Which of these is the bolt"
+ * answers itself when the other three are a suit of armour, a helmet and a
+ * shield, so ammunition, coins and the lone resource are never the subject —
+ * which is no loss, because nobody wants to be asked to identify a gold coin.
+ */
+const ASKABLE = DRAWN.filter((id) => DRAWN_BY_TYPE[ITEMS[id].type].length >= 4);
+
+/**
  * One sprite, no name, four names to choose from.
  *
- * The three wrong names come from the same item type where there are enough of
- * them, because "which of these is the shield" is not a question when the
- * picture is obviously a shield. Within a type it comes down to whether you
- * remember that the brass shield is the round one.
+ * The three wrong names always come from the same item type, because "which of
+ * these is the shield" is not a question when the picture is obviously a
+ * shield. Within a type it comes down to whether you remember that the brass
+ * shield is the round one.
  */
 export function spriteQuestion() {
-  const id = pick(DRAWN);
-  const sameType = (DRAWN_BY_TYPE[ITEMS[id].type] ?? []).filter((other) => other !== id);
-  const pool = sameType.length >= 3 ? sameType : DRAWN.filter((other) => other !== id);
-  const wrong = shuffle(pool).slice(0, 3);
+  const id = pick(ASKABLE);
+  const sameType = DRAWN_BY_TYPE[ITEMS[id].type].filter((other) => other !== id);
+  const wrong = shuffle(sameType).slice(0, 3);
   const options = shuffle([id, ...wrong]);
   return {
     kind: 'sprite',

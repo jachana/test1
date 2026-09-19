@@ -85,16 +85,14 @@ test('the sprite round shows art we actually have, and never its name', () => {
   }
 });
 
-test('the sprite round asks within one kind of thing where it can', () => {
+test('the sprite round always asks within one kind of thing', () => {
   // Four shields is a question about shields; a shield among three fish is not
-  // a question at all.
-  let sameType = 0;
-  for (let i = 0; i < 200; i++) {
+  // a question at all, so there is no "where it can" about it.
+  for (let i = 0; i < 300; i++) {
     const q = spriteQuestion();
     const types = new Set(q.options.map((o) => ITEMS[o.id].type));
-    if (types.size === 1) sameType += 1;
+    assert.equal(types.size, 1, `mixed types: ${q.options.map((o) => o.name).join(', ')}`);
   }
-  assert.ok(sameType > 180, `only ${sameType}/200 questions stayed within a type`);
 });
 
 // -------------------------------------------------------------------- flow
